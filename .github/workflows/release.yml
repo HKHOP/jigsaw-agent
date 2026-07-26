@@ -40,7 +40,9 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: |
+            dist/*.exe
+            dist/latest.yml
           body_path: release-notes.md
           prerelease: false
         env:
