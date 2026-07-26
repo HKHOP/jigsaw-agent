@@ -10,6 +10,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -26,6 +28,23 @@ jobs:
           $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
           echo "NIGHTLY_VERSION=$nightly" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $log = git log --oneline --no-decorate HEAD~10..HEAD 2>$null
+          if (-not $log) { $log = git log --oneline --no-decorate -10 }
+          @"
+          ## Nightly ${{ env.NIGHTLY_VERSION }}
+
+          Built from commit ${{ github.sha }} on ${{ github.ref_name }}.
+
+          ### Recent commits
+          $log
+
+          > ⚠️ This is a pre-release build from the latest code. It may contain bugs.
+          > Switch to the **Stable** channel in Settings → Updates for tagged releases.
+          "@ | Out-File -FilePath release-notes.md -Encoding utf8
+
       - run: npm ci
 
       - name: Build installer
@@ -36,6 +55,7 @@ jobs:
       - name: Delete old nightly release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
           gh release delete nightly --cleanup-tag --yes 2>$null
 
@@ -43,5 +63,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create nightly --title "Nightly ${{ env.NIGHTLY_VERSION }}" --notes "Auto-built from main branch commit ${{ github.sha }}" --prerelease
+          gh release create nightly --title "Nightly ${{ env.NIGHTLY_VERSION }}" --notes-file release-notes.md --prerelease
           gh release upload nightly dist/*.exe --clobber

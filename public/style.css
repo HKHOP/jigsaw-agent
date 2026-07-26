@@ -1186,6 +1186,63 @@ html, body {
   border-color: #555;
 }
 
+.changelog-content {
+  background: #050505;
+  border: 1px solid #222;
+  padding: 12px 16px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.changelog-content h2 {
+  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.changelog-content h2:first-child {
+  margin-top: 0;
+}
+
+.changelog-content h3 {
+  color: #8ab4f8;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 2px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.changelog-content ul {
+  margin: 2px 0 6px;
+  padding-left: 16px;
+  list-style: none;
+}
+
+.changelog-content li {
+  margin: 1px 0;
+  color: #888;
+}
+
+.changelog-content li::before {
+  content: "- ";
+  color: #555;
+}
+
+.changelog-content hr {
+  border: none;
+  border-top: 1px solid #1a1a1a;
+  margin: 8px 0;
+}
+
 #settings-tools-list {
   display: flex;
   flex-direction: column;

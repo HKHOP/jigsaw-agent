@@ -429,6 +429,7 @@ const settingsCatBtns = document.querySelectorAll('.settings-cat-btn');
 const settingsPanels = document.querySelectorAll('.settings-panel');
 const mainEl = document.getElementById('main');
 const channelRadios = document.querySelectorAll('input[name="channel-select"]');
+const changelogContent = document.getElementById('changelog-content');
 const queueBar = document.getElementById('queue-bar');
 const queueCount = document.getElementById('queue-count');
 const queueClear = document.getElementById('queue-clear');
@@ -454,6 +455,40 @@ function switchSettingsCat(cat) {
   settingsPanels.forEach(panel => {
     panel.classList.toggle('active', panel.id === 'settings-panel-' + cat);
   });
+  if (cat === 'updates') {
+    loadChangelog();
+  }
+}
+
+async function loadChangelog() {
+  changelogContent.textContent = 'Loading...';
+  try {
+    const res = await fetch('https://raw.githubusercontent.com/HKHOP/jigsaw-agent/main/CHANGELOG.md');
+    if (!res.ok) throw new Error('Failed to fetch');
+    const md = await res.text();
+    const lines = md.split('\n');
+    let html = '';
+    for (const line of lines) {
+      if (line.startsWith('# ')) {
+        html += `<h2>${line.slice(2)}</h2>`;
+      } else if (line.startsWith('## ')) {
+        html += `<h3>${line.slice(3)}</h3>`;
+      } else if (line.startsWith('### ')) {
+        html += `<b>${line.slice(4)}</b><br>`;
+      } else if (line.startsWith('- ')) {
+        html += `<li>${line.slice(2)}</li>`;
+      } else if (line.trim() === '') {
+        html += '<br>';
+      } else if (line.startsWith('---')) {
+        html += '<hr>';
+      } else {
+        html += `${line}<br>`;
+      }
+    }
+    changelogContent.innerHTML = html;
+  } catch {
+    changelogContent.textContent = 'Could not load changelog. Make sure you have internet access.';
+  }
 }
 
 settingsCatBtns.forEach(btn => {
