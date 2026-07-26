@@ -1447,6 +1447,49 @@ input.addEventListener('input', () => {
   input.style.height = Math.min(input.scrollHeight, 200) + 'px';
 });
 
+const updateBar = document.getElementById('update-bar');
+const updateText = document.getElementById('update-text');
+const updateProgress = document.getElementById('update-progress');
+const updateDownloadBtn = document.getElementById('update-download-btn');
+const updateInstallBtn = document.getElementById('update-install-btn');
+const updateCloseBtn = document.getElementById('update-close-btn');
+
+if (window.electronAPI) {
+  window.electronAPI.onUpdateAvailable((info) => {
+    updateText.textContent = `Version ${info.version} available`;
+    updateDownloadBtn.classList.remove('hidden');
+    updateInstallBtn.classList.add('hidden');
+    updateProgress.classList.add('hidden');
+    updateBar.classList.remove('hidden');
+  });
+
+  window.electronAPI.onUpdateDownloadProgress((progress) => {
+    updateProgress.classList.remove('hidden');
+    updateProgress.textContent = `Downloading... ${Math.round(progress.percent)}%`;
+  });
+
+  window.electronAPI.onUpdateDownloaded(() => {
+    updateProgress.classList.add('hidden');
+    updateDownloadBtn.classList.add('hidden');
+    updateInstallBtn.classList.remove('hidden');
+    updateText.textContent = 'Update downloaded — restart to install';
+  });
+
+  updateDownloadBtn.addEventListener('click', () => {
+    updateDownloadBtn.disabled = true;
+    updateDownloadBtn.textContent = 'Downloading...';
+    window.electronAPI.restartAndUpdate();
+  });
+
+  updateInstallBtn.addEventListener('click', () => {
+    window.electronAPI.restartAndUpdate();
+  });
+
+  updateCloseBtn.addEventListener('click', () => {
+    updateBar.classList.add('hidden');
+  });
+}
+
 (async () => {
   await loadThreads();
   if (threads.length > 0) {

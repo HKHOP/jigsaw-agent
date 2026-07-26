@@ -1,8 +1,12 @@
 const { app, BrowserWindow, dialog, Menu, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 
 Menu.setApplicationMenu(null);
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
 
 let mainWindow = null;
 let serverModule = null;
@@ -16,6 +20,9 @@ ipcMain.handle('win-maximize', () => {
   }
 });
 ipcMain.handle('win-close', () => mainWindow?.close());
+ipcMain.handle('restart-and-update', () => {
+  autoUpdater.quitAndInstall(false, true);
+});
 
 const DATA_DIR = app.getPath('userData');
 
@@ -55,10 +62,31 @@ function createWindow(port) {
   });
 }
 
+function setupAutoUpdater() {
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update-available', info);
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('update-download-progress', progress);
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    mainWindow?.webContents.send('update-downloaded');
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+  });
+
+  autoUpdater.checkForUpdates().catch(() => {});
+}
+
 app.whenReady().then(async () => {
   try {
     const port = await startServer();
     createWindow(port);
+    setupAutoUpdater();
   } catch (err) {
     dialog.showErrorBox('Startup Error', 'Failed to start server:\n' + err.message);
     app.quit();

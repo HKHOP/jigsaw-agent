@@ -16,6 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "playwright": "^1.61.1",
     "sql.js": "^1.14.1"
@@ -44,6 +45,11 @@
         "nsis"
       ],
       "icon": "build/icon.png"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "YOUR_GITHUB_USERNAME",
+      "repo": "jigsaw-agent"
     },
     "nsis": {
       "oneClick": false,
