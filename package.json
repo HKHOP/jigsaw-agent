@@ -11,9 +11,9 @@
     "build:win": "electron-builder --win --x64",
     "fetch-docs": "node scripts/fetch-docs.js"
   },
-  "repository": {
+      "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_GITHUB_USERNAME/jigsaw-agent.git"
+    "url": "https://github.com/HKHOP/jigsaw-agent.git"
   },
   "keywords": [],
   "author": "",
@@ -52,7 +52,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "YOUR_GITHUB_USERNAME",
+      "owner": "HKHOP",
       "repo": "jigsaw-agent"
     },
     "releaseInfo": {
