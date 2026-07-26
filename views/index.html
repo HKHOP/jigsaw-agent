@@ -117,6 +117,7 @@
       <button class="settings-cat-btn active" data-cat="mode">Mode</button>
       <button class="settings-cat-btn" data-cat="browser">Browser</button>
       <button class="settings-cat-btn" data-cat="apikeys">API Keys</button>
+      <button class="settings-cat-btn" data-cat="updates">Updates</button>
       <button class="settings-cat-btn" data-cat="tools">Tools</button>
     </div>
     <div id="settings-page-body">
@@ -181,6 +182,23 @@
               <input type="text" class="settings-text-input" id="settings-gemini-model" spellcheck="false">
             </label>
           </div>
+        </div>
+      </div>
+      <div class="settings-panel" id="settings-panel-updates">
+        <div class="settings-section">
+          <div class="settings-section-title">Release Channel</div>
+          <div class="settings-desc">
+            <b>Stable</b> — only receive releases from tagged stable versions.<br>
+            <b>Nightly</b> — auto-built from the latest code on GitHub. May be unstable.
+          </div>
+          <label class="settings-row">
+            <span>Stable — only tagged releases</span>
+            <input type="radio" name="channel-select" value="stable">
+          </label>
+          <label class="settings-row">
+            <span>Nightly — latest main branch builds</span>
+            <input type="radio" name="channel-select" value="nightly">
+          </label>
         </div>
       </div>
       <div class="settings-panel" id="settings-panel-tools">

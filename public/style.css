@@ -1102,7 +1102,8 @@ html, body {
   cursor: pointer;
 }
 
-.settings-row input[type="checkbox"] {
+.settings-row input[type="checkbox"],
+.settings-row input[type="radio"] {
   accent-color: #888;
   width: 16px;
   height: 16px;

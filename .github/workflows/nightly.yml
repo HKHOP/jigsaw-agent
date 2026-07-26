@@ -1,0 +1,47 @@
+name: Nightly Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set nightly version
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $date = Get-Date -Format "yyyyMMdd"
+          $run = $env:GITHUB_RUN_NUMBER
+          $nightly = "$($pkg.version)-nightly.$date.$run"
+          $pkg.version = $nightly
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+          echo "NIGHTLY_VERSION=$nightly" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - run: npm ci
+
+      - name: Build installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:win
+
+      - name: Delete old nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete nightly --cleanup-tag --yes 2>$null
+
+      - name: Create nightly release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create nightly --title "Nightly ${{ env.NIGHTLY_VERSION }}" --notes "Auto-built from main branch commit ${{ github.sha }}" --prerelease
+          gh release upload nightly dist/*.exe --clobber

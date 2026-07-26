@@ -26,6 +26,17 @@ ipcMain.handle('restart-and-update', () => {
 
 const DATA_DIR = app.getPath('userData');
 
+function getReleaseChannel() {
+  try {
+    const settingsPath = path.join(DATA_DIR, 'settings.json');
+    const raw = fs.readFileSync(settingsPath, 'utf-8');
+    const data = JSON.parse(raw);
+    return data.releaseChannel || 'stable';
+  } catch {
+    return 'stable';
+  }
+}
+
 async function startServer() {
   process.env.DATA_DIR = DATA_DIR;
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -63,6 +74,10 @@ function createWindow(port) {
 }
 
 function setupAutoUpdater() {
+  const channel = getReleaseChannel();
+  autoUpdater.channel = channel === 'nightly' ? 'nightly' : 'latest';
+  autoUpdater.allowPrerelease = channel === 'nightly';
+
   autoUpdater.on('update-available', (info) => {
     mainWindow?.webContents.send('update-available', info);
   });

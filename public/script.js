@@ -428,6 +428,7 @@ const settingsSave = document.getElementById('settings-save');
 const settingsCatBtns = document.querySelectorAll('.settings-cat-btn');
 const settingsPanels = document.querySelectorAll('.settings-panel');
 const mainEl = document.getElementById('main');
+const channelRadios = document.querySelectorAll('input[name="channel-select"]');
 const queueBar = document.getElementById('queue-bar');
 const queueCount = document.getElementById('queue-count');
 const queueClear = document.getElementById('queue-clear');
@@ -479,6 +480,7 @@ async function openSettings() {
   settingsOrModel.value = settingsCache.openrouterModel || '';
   settingsGeminiKey.value = settingsCache.geminiKey || '';
   settingsGeminiModel.value = settingsCache.geminiModel || '';
+  channelRadios.forEach(r => r.checked = r.value === (settingsCache.releaseChannel || 'stable'));
   renderToolSettings(settingsCache.tools || {});
   switchSettingsCat('mode');
   mainEl.classList.add('hidden');
@@ -541,6 +543,8 @@ settingsSave.addEventListener('click', async () => {
 
   let selected;
   modeRadios.forEach(r => { if (r.checked) selected = r.value; });
+  let channel;
+  channelRadios.forEach(r => { if (r.checked) channel = r.value; });
   await api('PUT', '/api/settings', {
     yoloMode: selected === 'yolo',
     autoApprove: selected === 'auto-approve',
@@ -549,6 +553,7 @@ settingsSave.addEventListener('click', async () => {
     openrouterModel: settingsOrModel.value,
     geminiKey: settingsGeminiKey.value,
     geminiModel: settingsGeminiModel.value,
+    releaseChannel: channel || 'stable',
     tools,
   });
   closeSettings();

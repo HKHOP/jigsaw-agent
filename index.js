@@ -382,6 +382,7 @@ function readSettings() {
       openrouterModel: process.env.OPENROUTER_MODEL || '',
       geminiKey: process.env.GEMINI_API_KEY || '',
       geminiModel: process.env.GEMINI_MODEL || '',
+      releaseChannel: 'stable',
     };
     writeSettings(defaults);
     return defaults;
