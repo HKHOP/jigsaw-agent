@@ -25,6 +25,36 @@ ipcMain.handle('restart-and-update', () => {
 });
 
 const DATA_DIR = app.getPath('userData');
+const PROJECT_DIR = path.dirname(__dirname);
+
+function migrateData() {
+  const projectData = path.join(PROJECT_DIR, 'data');
+  const settingsDest = path.join(DATA_DIR, 'settings.json');
+  const chatsDest = path.join(DATA_DIR, 'chats.json');
+  let migrated = false;
+
+  if (!fs.existsSync(settingsDest)) {
+    const settingsSrc = path.join(projectData, 'settings.json');
+    if (fs.existsSync(settingsSrc)) {
+      try {
+        fs.copyFileSync(settingsSrc, settingsDest);
+        migrated = true;
+      } catch {}
+    }
+  }
+
+  if (!fs.existsSync(chatsDest)) {
+    const chatsSrc = path.join(projectData, 'chats.json');
+    if (fs.existsSync(chatsSrc)) {
+      try {
+        fs.copyFileSync(chatsSrc, chatsDest);
+        migrated = true;
+      } catch {}
+    }
+  }
+
+  return migrated;
+}
 
 function getReleaseChannel() {
   try {
@@ -40,6 +70,7 @@ function getReleaseChannel() {
 async function startServer() {
   process.env.DATA_DIR = DATA_DIR;
   fs.mkdirSync(DATA_DIR, { recursive: true });
+  migrateData();
 
   serverModule = require(path.join(__dirname, '..', 'index.js'));
 

@@ -1,6 +1,6 @@
 {
   "name": "jigsaw-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Jigsaw Agent Desktop - Multi-turn AI chat with autonomous tools",
   "main": "electron/main.js",
   "scripts": {

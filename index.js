@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { spawn, execSync } = require('node:child_process');
 const { Worker } = require('node:worker_threads');
+const WORKER_PATH = path.join(__dirname, 'worker.js');
 const os = require('node:os');
 const { generateReply, streamReply, compactMessages, estimateMessagesTokens } = require('./ai');
 const { executeTool } = require('./tools');
@@ -19,7 +20,7 @@ const pending = {};
 
 function initWorkers() {
   for (let i = 0; i < POOL_SIZE; i++) {
-    const w = new Worker('./worker.js');
+    const w = new Worker(WORKER_PATH);
     w.on('message', (msg) => {
       const cb = pending[msg.id];
       if (cb) {

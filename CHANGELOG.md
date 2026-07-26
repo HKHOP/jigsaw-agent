@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 2026-07-26
+
+### Fixed
+- Packaged EXE could not create threads (Worker path was relative, broke in ASAR)
+- Packaged EXE could not open settings on first run (data migration from project `data/` to Electron `userData` was missing)
+
 ## 1.0.0 — 2026-07-26
 
 ### Added
