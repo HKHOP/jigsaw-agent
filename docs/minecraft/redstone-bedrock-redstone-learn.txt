@@ -1,0 +1,84 @@
+Source: https://redstone.tools/learn/
+Title: Learn Minecraft Bedrock Redstone — Interactive Guides | Redstone Companion
+Category: redstone
+Fetched: 2026-07-20T16:48:22.160Z
+
+============================================================
+
+Learn Redstone 
+ Interactive guides to Minecraft Bedrock Edition redstone. Every concept comes with a live circuit you can play with right here in the page — no install, no account. 
+
+ No guides match your search. 
+
+ Concepts 
+
+ Quasi-Connectivity (and why Bedrock doesn't have it) 
+ Quasi-connectivity is a Java Edition quirk where a piston, dispenser, or dropper fires from power reaching the block above it. Bedrock removed it, so Java builds that rely on it must be rewired. 
+
+ Why Won't My Redstone Work? 
+ Most broken redstone comes down to a few causes: dust missing support, a torch fed only weak power, signal decaying past 15 blocks, or a component facing the wrong way. Here is the checklist. 
+
+ Strong vs. Weak Power 
+ Redstone has two kinds of block power: strong power flips torches and feeds new dust, while weak power only triggers components touching the block. Mixing them up breaks half of all circuits. 
+
+ Redstone Ticks & Timing 
+ A game tick is the world's heartbeat; a redstone tick is two of them. Repeaters add 1 to 4 redstone ticks of delay each, letting you tune timing precisely for clocks, sequences, and pulses. 
+
+ Components 
+
+ Redstone Dust 
+ Redstone dust is the wire of Minecraft. It carries a signal that starts at power level 15 and drops by 1 for every block it travels, fading to nothing after 15 blocks unless a repeater boosts it back up. 
+
+ Redstone Torch 
+ A redstone torch is a constant power source that also works as a signal inverter (NOT gate). It outputs power level 15 when lit, and switches off when the block it is attached to becomes strongly powered. 
+
+ Redstone Repeater 
+ A redstone repeater relays a signal in one direction, resets its strength back to 15, and adds an adjustable delay of 1 to 4 redstone ticks. It can also be locked to hold a signal frozen. 
+
+ Redstone Comparator 
+ A redstone comparator measures and compares analog signal strengths. In comparison mode it passes the back signal unless a side is stronger; in subtraction mode it outputs the back minus the strongest side. 
+
+ Observer 
+ An observer watches the block directly in front of its face and emits a short pulse from its back whenever that block changes state. It detects updates that ordinary redstone cannot see. 
+
+ Piston & Sticky Piston 
+ A piston pushes up to 12 blocks when powered. A sticky piston also pulls one block back when it retracts. Both are the foundation of doors, traps, elevators, and hidden mechanisms. 
+
+ Redstone Lamp 
+ A redstone lamp is a full bright light block that turns on whenever it receives any redstone signal and turns off when the signal stops. It is the simplest way to see a circuit working. 
+
+ Logic 
+
+ Logic Gates: AND, OR, NOT 
+ Logic gates combine on/off inputs into a decision. NOT inverts a signal, AND fires only when every input is on, and OR fires when any input is on. They are the alphabet of redstone computing. 
+
+ XOR & XNOR Gates 
+ An XOR gate outputs on only when its two inputs differ, making it perfect for two-switch lighting and adders. An XNOR gate is its opposite, firing only when both inputs match. 
+
+ Memory & Timing 
+
+ RS Latch & Memory 
+ An RS latch is the simplest redstone memory: a set input turns the output on, a reset input turns it off, and it holds that state on its own after the input is released. 
+
+ Redstone Clocks 
+ A redstone clock produces a repeating on/off pulse. Observer clocks are fast and tiny, repeater clocks are adjustable and reliable, and hopper clocks are easy to tune for slow timers. 
+
+ Builds 
+
+ Minecraft Piston Door (Bedrock) 
+ A piston door hides an entrance behind blocks that slide aside on command. Sticky pistons pull the blocks back to seal it, and the design scales from a simple 2x2 to hidden staircases. 
+
+ Signal Strength & Power Levels 
+ Redstone signals carry a strength from 0 to 15. Sources output 15, dust loses 1 per block, and components like comparators read and act on that analog level rather than a simple on/off. 
+
+ Minecraft Item Sorter (Bedrock) 
+ An item sorter routes specific items into their own chests automatically. A comparator reads a hopper pre-filled with filter items, and the tiny signal it produces unlocks the hopper only for matches. 
+
+ Minecraft Auto Farm (Bedrock Redstone) 
+ An automatic farm harvests crops with no clicking. An observer watches a plant, detects the moment it matures, and fires a piston to break it — while hoppers below collect the drops. 
+
+ Minecraft TNT Cannon (Bedrock) 
+ A TNT cannon launches a projectile TNT using the blast of propellant TNT. Water dampens the propellant so the cannon survives, and careful fuse timing flings the shot before it explodes. 
+
+ Minecraft Flying Machine (Bedrock) 
+ A flying machine moves itself through the air using slime or honey blocks, pistons, and observers. An observer engine keeps pushing and pulling a sticky core so the whole rig glides without support.

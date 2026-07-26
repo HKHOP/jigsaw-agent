@@ -1,0 +1,58 @@
+{
+  "name": "jigsaw-agent",
+  "version": "1.0.0",
+  "description": "Jigsaw Agent Desktop - Multi-turn AI chat with autonomous tools",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "electron-dev": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64",
+    "fetch-docs": "node scripts/fetch-docs.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "playwright": "^1.61.1",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.jigsaw-agent.desktop",
+    "productName": "Jigsaw Agent",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!data/**",
+      "!dist/**",
+      "!build/**"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "shortcutName": "Jigsaw Agent"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+Source: https://docs.fabricmc.net/develop/getting-started/setting-up
+Title: Setting Up Your Development Environment | Fabric Documentation
+Category: fabric
+Fetched: 2026-07-20T16:48:07.336Z
+
+============================================================
+
+Setting Up Your Development Environment 26.1.2 ​ A step-by-step guide on how to set up a development environment to create mods using Fabric. Install JDK 25 ​ To develop mods for Minecraft 26.1, you will need JDK 25. If you need help installing Java, you can refer to the Java installation guides . Set Up Your IDE ​ To start developing mods with Fabric, you will need to set up a development environment using IntelliJ IDEA (recommended), or alternatively Visual Studio Code. IntelliJ IDEA Visual Studio Code

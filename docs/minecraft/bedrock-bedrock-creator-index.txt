@@ -1,0 +1,158 @@
+Source: https://learn.microsoft.com/en-us/minecraft/creator/
+Title: Minecraft: Bedrock Edition Creator Documentation | Microsoft Learn
+Category: bedrock
+Fetched: 2026-07-20T16:44:42.482Z
+
+============================================================
+
+Minecraft: Bedrock Edition Creator Documentation 
+ Learn how to mod Minecraft with Add-Ons. Create skins, design unique experiences, discover the latest features, and develop your skills as a Minecraft creator. 
+
+ Reference 
+ Scripting 
+
+ Training 
+ Creator Learning Journey 
+
+ Training 
+ Game Development Journey 
+
+ What's new 
+ Control Schemes 
+
+ What's new 
+ 1.26.30 Update Summary 
+
+ What's new 
+ Minecraft Bedrock Editor 
+
+ What's new 
+ Minecraft Creator Tools 
+
+ sample 
+ Tower Defense Add-On 
+
+ Building Custom Content 
+ Whether you're creating your first Add-On or your one-hundredth, there's content for all types of creators to help you on your journey! 
+
+ Getting Started with Add-On Development 
+ Working with Add-Ons in Minecraft: Bedrock Edition is easy! Learn how to get started. 
+
+ Getting Started with Minecraft Block Wizard 
+ Rapidly design, build and deploy a brand new Block with the new Minecraft Block Wizard Tool. 
+
+ Getting Started with Minecraft Entity Wizard 
+ Rapidly design, build and deploy a brand new Entity with the Minecraft Entity Wizard Tool. 
+
+ Discover what you can Create 
+ Building new Add-Ons or want to learn about new features? You'll find all you need in the Creator Documentation! 
+
+ Add-On Pack Tutorials 
+ Learn how to use Add-Ons to bring custom content into Minecraft. 
+
+ Introduction to Resource Packs 
+
+ Introduction to Behavior Packs 
+
+ How to add a Custom Block 
+
+ Build a simple game with Commands 
+ Commands are a powerful way to add logic to your experiences. 
+
+ Introduction to Commands 
+
+ Popular Commands 
+
+ Introduction to Command Blocks 
+
+ Create an In-World Game with Commands 
+
+ Command Reference Documentation 
+
+ Adding new Minecraft Entities 
+ Learn how to create and implement your own custom entities. 
+
+ Creating New Entity Types 
+
+ Entity Modeling and Animation 
+
+ Entity Behavior Introduction 
+
+ Entity Events 
+
+ Entity Properties 
+
+ Molang Documentation 
+
+ Adding NPCs 
+ Populate your world with interactive characters to create unique narrative experiences. 
+
+ Create a Custom NPC 
+
+ NPC Dialogue Command 
+
+ Loot and Trading Tables 
+ Discover how Tables allow creators to add items to the world in a wide variety of ways. 
+
+ Introduction to Loot and Trade Tables 
+
+ Loot Overloads 
+
+ Learn about Loot Overloads 
+
+ Adding new Custom Blocks 
+ Learn how to make your own custom blocks to decorate your world. 
+
+ Simple Blocks 
+
+ Unique Shape Blocks 
+
+ Block Render and Lighting Options 
+
+ Oversized Blocks 
+
+ References 
+
+ Using Script APIs 
+ Learn how new Script APIs can speed up your development time and make more dynamic content. 
+
+ Getting Started with Scripting APIs 
+
+ Scripting API Reference 
+
+ Using TypeScript with Minecraft Scripting APIs 
+
+ Use Visual Studio Code tools to write script 
+
+ Getting Started with Editor Extensions 
+
+ JSON Reference Documentation 
+ Need a hand creating your content? View the JSON reference documentation to see how things work in-game. 
+
+ Vanilla Content Reference 
+
+ Block JSON 
+
+ Entity JSON 
+
+ Features JSON 
+
+ Item JSON 
+
+ Recipe JSON 
+
+ Particle JSON 
+
+ Common Schema Documentation 
+ Learn to use schemas to validate JSON files in Minecraft: Bedrock Edition. 
+
+ Schemas Documentation 
+
+ Introduction to Fogs 
+
+ Tools and Vanilla Packs 
+ Get started with some of the most commonly used tools for creating content. 
+
+ Visual Studio Code 
+
+ Vanilla Resource and Behavior Packs

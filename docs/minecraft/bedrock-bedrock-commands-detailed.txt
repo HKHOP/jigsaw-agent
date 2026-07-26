@@ -1,0 +1,378 @@
+Source: https://learn.microsoft.com/en-us/minecraft/creator/reference/content/commandsreference/examples/commandlist?view=minecraft-bedrock-stable
+Title: Commands Documentation - Commands | Microsoft Learn
+Category: bedrock
+Fetched: 2026-07-20T16:47:45.599Z
+
+============================================================
+
+Table of contents 
+
+ Exit editor mode 
+
+ Ask Learn 
+
+ Ask Learn 
+
+ Reading mode 
+
+ Table of contents 
+
+ Read in English 
+
+ Add 
+
+ Add to plan 
+
+ Edit 
+
+ Copy Markdown 
+
+ Print 
+
+ Note 
+
+ Access to this page requires authorization. You can try signing in or changing directories .
+
+ Access to this page requires authorization. You can try changing directories .
+
+ Commands Documentation 
+
+ Feedback 
+
+ Summarize this article for me
+
+ World Editing 
+
+ Command 
+ Description 
+
+ clearspawnpoint 
+ Removes the spawn point for a player. 
+
+ clone 
+ Clones a set of blocks from one region to another. 
+
+ fill 
+ Fills all or parts of a region with a specific block. 
+
+ place 
+ Places a jigsaw structure, feature, or feature rule in the world. 
+
+ setblock 
+ Changes a block to another block. 
+
+ setworldspawn 
+ Sets the location where new players or players who die will spawn in the world. 
+
+ spawnpoint 
+ Sets the spawn point for a player. 
+
+ spreadplayers 
+ Teleports entities to random locations. 
+
+ structure 
+ Saves or loads a structure in the world. 
+
+ Entity Management 
+
+ Command 
+ Description 
+
+ damage 
+ Apply damage to the specified entities. 
+
+ effect 
+ Add or clear status effects. 
+
+ enchant 
+ Adds an enchantment to a player's selected item. 
+
+ event 
+ Triggers an event for the specified entity or entities. 
+
+ kill 
+ Kills entities like players and mobs. 
+
+ playanimation 
+ Makes one or more entities play a one-off animation. 
+
+ replaceitem 
+ Replaces items in inventories. 
+
+ ride 
+ Makes entities ride other entities, stops entities from riding, makes rides evict their riders, or summons rides or riders. 
+
+ summon 
+ Summons an entity. 
+
+ tag 
+ Manages tags stored in entities. 
+
+ Player 
+
+ Command 
+ Description 
+
+ aimassist 
+ Enable Aim Assist 
+
+ clear 
+ Clears items from player inventory. 
+
+ controlscheme 
+ Sets or clears control schemes for the camera(s) of selected player(s). 
+
+ gamemode 
+ Sets a player's game mode. 
+
+ give 
+ Gives an item to a player. 
+
+ hud 
+ Configures whether elements of the on-screen display (alternately known as the 'heads up display', or 'HUD') are visible on the screen. 
+
+ inputpermission 
+ Optionally enables or disables input permissions for a player. 
+
+ teleport 
+ Teleports entities to specific locations. 
+
+ xp 
+ Adds or removes player experience. 
+
+ Camera 
+
+ Command 
+ Description 
+
+ camera 
+ Transforms the camera for the selected player(s) to a different perspective. 
+
+ camerashake 
+ Applies shaking to the players' camera with specified intensity and duration. 
+
+ World Settings 
+
+ Command 
+ Description 
+
+ changesetting 
+ Changes a setting on the dedicated server while it's running. 
+
+ daylock 
+ Locks and unlocks the day-night cycle. 
+
+ difficulty 
+ Sets the difficulty level (Peaceful, Easy, Normal, Hard) using difficulty enum or integer. 
+
+ gamerule 
+ Sets or queries a game rule value. 
+
+ mobevent 
+ Controls what mob events are allowed to run. 
+
+ tickingarea 
+ Add, remove, or list ticking areas. 
+
+ time 
+ Changes or queries the world's game time. 
+
+ toggledownfall 
+ Toggles the weather. 
+
+ weather 
+ Sets the weather in the environment. 
+
+ Chat & Communication 
+
+ Command 
+ Description 
+
+ dialogue 
+ Opens NPC dialogue for a player. 
+
+ me 
+ Displays a message about yourself. 
+
+ say 
+ Sends a message in the chat to other players. 
+
+ tell 
+ Sends a private message to one or more players. 
+
+ tellraw 
+ Sends a JSON message to players. 
+
+ title 
+ Controls the text and behavior for screen titles using plain text. 
+
+ titleraw 
+ Controls the text and behavior for screen titles using JSON messages. 
+
+ Data & Logic 
+
+ Command 
+ Description 
+
+ execute 
+ Executes a command on behalf of one or more entities. 
+
+ function 
+ Runs commands found in the corresponding function file. 
+
+ schedule 
+ Schedules an action to be executed once an area is loaded, or after a certain amount of time. 
+
+ scoreboard 
+ Tracks and displays scores for various objectives. 
+
+ testfor 
+ Counts entities (players, mobs, items, etc.) matching specified conditions. 
+
+ testforblock 
+ Tests whether a certain block is in a specific location. 
+
+ testforblocks 
+ Tests whether the blocks in two regions match. 
+
+ Server & Admin 
+
+ Command 
+ Description 
+
+ allowlist 
+ Manages the server allowlist. 
+
+ deop 
+ Revokes operator status from a player. 
+
+ kick 
+ Kicks a player from the server. 
+
+ list 
+ Lists players on the server. 
+
+ op 
+ Grants operator status to a player. 
+
+ packstack 
+ Prints client or server pack stack to chat 
+
+ permission 
+ Reloads and applies permissions. 
+
+ reload 
+ Reloads all function and script files from all behavior packs. 
+
+ reloadconfig 
+ Reloads configuration files relating to variables, secrets, permissions, etc. 
+
+ reloadpacketlimitconfig 
+ Reload packet limit config from file 
+
+ save 
+ Control or check how the game saves data to disk. 
+
+ sendshowstoreoffer 
+ Available on dedicated server only with administrator permissions. 
+
+ setmaxplayers 
+ Sets the maximum number of players for this game session. 
+
+ stop 
+ Stops the server. 
+
+ transfer 
+ Transfers a player to another server. 
+
+ wsserver 
+ Attempts to connect to the websocket server on the provided URL. 
+
+ Scripting 
+
+ Command 
+ Description 
+
+ gametest 
+ [Requires the Beta APIs experiment]. 
+
+ script 
+ Debugging options for script within Minecraft. 
+
+ scriptevent 
+ Causes an event to fire within script with the specified message ID and payload. 
+
+ Sound & Visuals 
+
+ Command 
+ Description 
+
+ fog 
+ Add or remove fog settings file. 
+
+ music 
+ Allows you to control playing music tracks. 
+
+ particle 
+ Creates a particle emitter 
+
+ playsound 
+ Plays a sound. 
+
+ stopsound 
+ Stops a sound. 
+
+ Loot & Recipes 
+
+ Command 
+ Description 
+
+ loot 
+ Drops the given loot table into the specified inventory or into the world. 
+
+ recipe 
+ Supports unlocking of built-in (vanilla) recipes that a particular player can craft with. 
+
+ Help 
+
+ Command 
+ Description 
+
+ help 
+ Running /help in the chat by itself will list every command you can run. 
+
+ Other 
+
+ Command 
+ Description 
+
+ locate 
+ Finds the nearest specified biome or structure if it exists in the current dimension. 
+
+ project 
+ This command contains additional tools for managing an Editor project. 
+
+ Feedback 
+
+ Was this page helpful?
+
+ Yes 
+
+ No 
+
+ No 
+
+ Need help with this topic?
+
+ Want to try using Ask Learn to clarify or guide you through this topic?
+
+ Ask Learn 
+
+ Ask Learn 
+
+ Suggest a fix? 
+
+ Additional resources
+
+ Last updated on 
+ 2026-03-05

@@ -1,0 +1,52 @@
+Source: https://guildorder.com/games/minecraft/wiki/redstone-guide
+Title: Minecraft Redstone Guide: Basics, Components, and Common Builds - Minecraft | Guild Order
+Category: redstone
+Fetched: 2026-07-20T16:48:24.986Z
+
+============================================================
+
+Minecraft Redstone Guide: Basics, Components, and Common Builds verified Good edit_note By Jonas Laurier calendar_today Updated 4/7/2026 visibility 426 views Game Mechanics Minecraft link Link Redstone is Minecraft's wiring and logic system. It lets you build anything from a simple automatic door to a functioning calculator. If crafting and building are Minecraft's core, redstone is the engineering layer that brings your builds to life. 
+ This guide covers the fundamentals: core components, signal mechanics, basic circuits, and practical builds you can use on any survival world or server. 
+ What Is Redstone? [edit] 
+ Redstone is a material found while mining (redstone ore, below Y=16) that functions as a power source and transmission medium. When placed on the ground, redstone dust forms a wire that transmits power from a source to a device. 
+ The basic concept: Power source → Redstone dust (wire) → Device (piston, door, lamp, etc.) 
+ Redstone power has a signal strength from 0 to 15. A signal loses 1 strength for each block of redstone dust it travels through. After 15 blocks, the signal dies. Repeaters refresh the signal back to 15. 
+ Core Components [edit] 
+ Power Sources 
+ Redstone torch - Always-on power source. Can be inverted by powering the block it's attached to (this is how you build NOT gates). Lever - Toggle switch. On or off. Button - Momentary pulse. Stone buttons pulse for 10 ticks (1 second), wooden buttons for 15 ticks. Pressure plate - Activates when stepped on. Wood activates for any entity, stone only for mobs/players, weighted plates give variable signal strength. Daylight detector - Outputs signal based on sunlight level. Observer - Outputs a pulse when the block it's facing changes state. One of the most versatile components. Tripwire hook - Activates when a player/mob walks through the connected string. Sculk sensor - Detects vibrations (footsteps, block breaks, projectiles) wirelessly. Added in 1.19. Redstone block - Permanent power source. Powers adjacent redstone and devices. 
+ Transmission 
+ Redstone dust - The basic wire. Signal strength decreases by 1 per block. Redstone repeater - Refreshes signal to strength 15. Adds a configurable delay (1-4 ticks). Only transmits in one direction. Can be locked by a side repeater to hold its state. Redstone comparator - Reads signal strength, compares two inputs, or reads container fullness. The most complex component. 
+ Devices (things redstone activates) 
+ Piston - Pushes blocks (up to 12). The backbone of most mechanical builds. Sticky piston - Pushes and pulls blocks. Essential for hidden doors, flying machines. Hopper - Transfers items between containers. Ticks once every 4 game ticks (0.4 seconds). Can be disabled by powering it. Dropper - Drops or transfers one item when powered. Dispenser - Fires items (arrows, fire charges, water buckets) or places certain blocks. Note block - Plays a note when powered. Pitch changes with clicks, instrument changes based on block below. TNT - Ignites when powered. 4-second fuse, 40-second fuse with redstone. Redstone lamp - Light source that activates with power. Iron/copper door, trapdoor - Opens with redstone power. 
+ Signal Basics [edit] 
+ Power States 
+ Blocks can be powered (receiving redstone signal) or unpowered . A powered block can activate adjacent devices. Some power sources create strong power (powers the block AND adjacent devices), while others create weak power (powers only adjacent redstone dust). 
+ Quasi-Connectivity (Java Edition Only) 
+ In Java Edition, pistons and dispensers can be activated by power applied to the block above them, even if there's no direct redstone connection. This quirk - technically a bug that became a feature - enables many compact circuit designs. Bedrock Edition does not have quasi-connectivity , which is a major difference for redstone builders. 
+ Tick Timing 
+ Minecraft runs at 20 ticks per second (TPS). Redstone operates on redstone ticks , which are 2 game ticks each (0.1 seconds). Understanding tick timing is essential for circuits that depend on precise sequencing. 
+ Common Circuits [edit] 
+ Clock (Repeater Clock) 
+ A circuit that pulses on and off at regular intervals. The simplest version: a loop of repeaters, each set to a delay. The signal chases itself around the loop, creating a repeating pulse. Used to drive automatic farms, dispensers, and timed mechanisms. 
+ T Flip-Flop 
+ Converts a button press (momentary pulse) into a toggle (on/off). Each press switches the state. Used to make buttons act like levers - press once to open a door, press again to close it. 
+ Pulse Extender 
+ Extends a short pulse into a longer signal. Useful when a button press needs to keep a mechanism active for several seconds. 
+ Monostable Circuit 
+ The opposite - converts a long signal into a single short pulse. Useful when you need one activation regardless of how long the input is held. 
+ Practical Builds for Beginners [edit] 
+ Automatic Door 
+ Place pressure plates on both sides of an iron door. Step on the plate to open, step off to close. For a hidden piston door, use sticky pistons to retract blocks from a wall - activating them with a lever or button hidden in the wall. 
+ Item Sorter 
+ Uses hoppers and comparators to automatically sort items into chests by type. The standard design: 
+ A line of hoppers feeding into each other Each hopper contains the item type to sort (with some filler items to prevent mis-sorting) A comparator reads the hopper's fullness When the target item enters, signal strength changes, activating a dropper or hopper to pull it into the correct chest 
+ Item sorters are one of the most useful redstone builds for any survival world - dump everything into one chest and let the system sort it. 
+ Auto-Smelter 
+ Hoppers feed raw materials into furnaces from above and collect smelted items from below. Multiple furnaces in parallel handle high throughput. Add a hopper feeding fuel from the side for full automation. 
+ Simple Crop Farm 
+ A dispenser with a water bucket, activated by a button or clock, floods a field to harvest crops. Hoppers below the water flow collect the drops. Replanting is manual in vanilla (villagers can auto-plant certain crops). 
+ Mob Grinder 
+ Build a dark room (no light = mobs spawn), use water streams to push mobs into a drop shaft, and collect drops at the bottom with hoppers. Adding a trident killer or suffocation chamber automates the killing for drops and XP. 
+ Java vs Bedrock Redstone [edit] 
+ Mechanic Java Edition Bedrock Edition Quasi-connectivity Yes (pistons/dispensers) No Piston timing Predictable, 0-tick possible Different timing, no 0-tick Observer output 1 redstone tick pulse 2 redstone tick pulse Sticky piston Always pulls block back May drop block if pulsed quickly Update order Deterministic Less predictable 
+ Redstone tutorials designed for Java may not work on Bedrock and vice versa. Always check which edition a tutorial targets before building. arrow_upward Back to top Article Info folder Game Mechanics visibility 426 views schedule 4/7/2026 event_available Created 4/7/2026 Related Articles article Minecraft Dimensions: The Overworld, Nether, and End Explained article Minecraft Enchanting and Brewing Guide

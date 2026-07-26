@@ -1,0 +1,240 @@
+Source: https://xgamingserver.com/blog/minecraft-item-ids/
+Title: Minecraft Item IDs List &amp; How to Find Any ID (26.2)
+Category: reference
+Fetched: 2026-07-20T16:54:09.829Z
+
+============================================================
+
+Most popular 
+
+ Play this on your own server 
+ Host your own Minecraft server 
+
+ from 
+ $8.40 
+ /mo 
+
+ Live in minutes 
+ Mods & plugins supported 
+ DDoS protected & backed up 
+
+ Start your server 
+ See plans & features 
+ Trusted by thousands of gamers 
+
+ In Minecraft: Java Edition 26.2, every item, block, and entity is identified by a namespaced string called a resource location , written as namespace:path — for example minecraft:diamond_sword . These string IDs are what commands like /give expect. Java Edition has no numeric item IDs (they were removed in the 1.13 flattening ), so any old guide listing a plain number will not work here. This reference explains the ID format, gives a table of the most-needed IDs, and shows how to look up any item s exact ID directly in-game. 
+
+ To run these commands you first need to open the chat/console. On a single-player world or client, press T (or / ) to open chat, type your command starting with a forward slash, and press Enter. On a dedicated server you can type commands straight into the server console with no leading slash. Building commands by hand is fiddly, so pair this page with our free Minecraft Give Command tool , which generates valid /give syntax (including enchantments and data components) for you. 
+
+ Common Minecraft Item IDs (Java 26.2) 
+
+ Java Edition has well over 1,000 items, so the table below is a representative list of the most commonly needed IDs, not an exhaustive dump. For a complete catalog, use the authoritative Java Edition data values page or look items up in-game with F3+H (explained further down). 
+
+ Item Item ID Give Example Notes 
+ Diamond Sword minecraft:diamond_sword /give @s minecraft:diamond_sword 1 Diamond-tier melee weapon 
+ Netherite Sword minecraft:netherite_sword /give @s minecraft:netherite_sword 1 Highest-tier melee weapon 
+ Diamond Pickaxe minecraft:diamond_pickaxe /give @s minecraft:diamond_pickaxe 1 Diamond mining tool 
+ Diamond Axe minecraft:diamond_axe /give @s minecraft:diamond_axe 1 Diamond chopping tool 
+ Bow minecraft:bow /give @s minecraft:bow 1 Ranged weapon firing arrows 
+ Arrow minecraft:arrow /give @s minecraft:arrow 64 Ammunition for bows/crossbows 
+ Shield minecraft:shield /give @s minecraft:shield 1 Blocking/defense item 
+ Elytra minecraft:elytra /give @s minecraft:elytra 1 Wearable gliding wings (chest slot) 
+ Totem of Undying minecraft:totem_of_undying /give @s minecraft:totem_of_undying 1 Prevents death when held 
+ Diamond minecraft:diamond /give @s minecraft:diamond 64 Crafting material / gem 
+ Netherite Ingot minecraft:netherite_ingot /give @s minecraft:netherite_ingot 4 Upgrades netherite gear 
+ Iron Ingot minecraft:iron_ingot /give @s minecraft:iron_ingot 64 Common metal material 
+ Gold Ingot minecraft:gold_ingot /give @s minecraft:gold_ingot 64 Gold crafting material 
+ Copper Ingot minecraft:copper_ingot /give @s minecraft:copper_ingot 64 Copper crafting material 
+ Coal minecraft:coal /give @s minecraft:coal 64 Fuel and torch material 
+ Emerald minecraft:emerald /give @s minecraft:emerald 64 Villager trading currency 
+ Redstone Dust minecraft:redstone /give @s minecraft:redstone 64 Redstone circuitry material 
+ Ender Pearl minecraft:ender_pearl /give @s minecraft:ender_pearl 16 Teleportation throwable 
+ Gunpowder minecraft:gunpowder /give @s minecraft:gunpowder 64 TNT / firework material 
+ Stick minecraft:stick /give @s minecraft:stick 64 Basic crafting handle 
+ Stone minecraft:stone /give @s minecraft:stone 64 Basic stone block 
+ Cobblestone minecraft:cobblestone /give @s minecraft:cobblestone 64 From mining stone 
+ Dirt minecraft:dirt /give @s minecraft:dirt 64 Basic dirt block 
+ Oak Log minecraft:oak_log /give @s minecraft:oak_log 64 Oak wood log 
+ Oak Planks minecraft:oak_planks /give @s minecraft:oak_planks 64 Crafted wooden planks 
+ Glass minecraft:glass /give @s minecraft:glass 64 Transparent smelted block 
+ Obsidian minecraft:obsidian /give @s minecraft:obsidian 10 Blast-resistant; portal frame 
+ Diamond Block minecraft:diamond_block /give @s minecraft:diamond_block 8 Storage block of 9 diamonds 
+ Crafting Table minecraft:crafting_table /give @s minecraft:crafting_table 1 3×3 crafting station 
+ Furnace minecraft:furnace /give @s minecraft:furnace 1 Smelting block 
+ Chest minecraft:chest /give @s minecraft:chest 1 27-slot storage block 
+ Ender Chest minecraft:ender_chest /give @s minecraft:ender_chest 1 Per-player shared storage 
+ Torch minecraft:torch /give @s minecraft:torch 64 Basic light source 
+ TNT minecraft:tnt /give @s minecraft:tnt 1 Explosive block 
+ Bread minecraft:bread /give @s minecraft:bread 16 Basic food item 
+ Apple minecraft:apple /give @s minecraft:apple 16 Food item 
+ Golden Apple minecraft:golden_apple /give @s minecraft:golden_apple 4 Absorption/regeneration food 
+ Enchanted Golden Apple minecraft:enchanted_golden_apple /give @s minecraft:enchanted_golden_apple 1 Rare God apple 
+ Cooked Beef (Steak) minecraft:cooked_beef /give @s minecraft:cooked_beef 16 High-value cooked food 
+ Water Bucket minecraft:water_bucket /give @s minecraft:water_bucket 1 Bucket filled with water 
+ Bucket minecraft:bucket /give @s minecraft:bucket 1 Empty bucket 
+ Enchanted Book minecraft:enchanted_book /give @s minecraft:enchanted_book 1 Stores enchantments (anvil) 
+ Potion minecraft:potion /give @s minecraft:potion 1 Drinkable; set via component 
+ Name Tag minecraft:name_tag /give @s minecraft:name_tag 1 Renames mobs (anvil) 
+ Saddle minecraft:saddle /give @s minecraft:saddle 1 Ride horses/pigs/striders 
+ Creeper Spawn Egg minecraft:creeper_spawn_egg /give @s minecraft:creeper_spawn_egg 1 Spawn-egg pattern (see below) 
+
+ How Item IDs Are Structured 
+
+ Every ID is a resource location of the form namespace:path . For vanilla content the namespace is minecraft and the path is a lowercase snake_case name using only a–z , 0–9 , and underscores — for example minecraft:enchanted_book . In commands the minecraft: prefix is optional, so minecraft:diamond_sword and diamond_sword both work. However, the prefix is required to reference datapack or mod content, which uses its own namespace such as mypack:custom_item . Because most placed blocks can also be held, most block IDs are simultaneously valid item IDs. 
+
+ Minecraft 26.2 ( Chaos Cubed ) adds new IDs including minecraft:sulfur , minecraft:cinnabar , minecraft:potent_sulfur , minecraft:sulfur_cube_spawn_egg , minecraft:bucket_of_sulfur_cube , and the record minecraft:music_disc_bounce , along with polished, brick, chiseled, stairs, slab, and wall variants of sulfur and cinnabar. 
+
+ Spawn Eggs Follow a Pattern 
+
+ Every spawnable mob has a spawn egg whose ID follows the pattern minecraft: _spawn_egg . Examples include minecraft:creeper_spawn_egg , minecraft:zombie_spawn_egg , minecraft:cow_spawn_egg , minecraft:villager_spawn_egg , and the new minecraft:sulfur_cube_spawn_egg . Once you know a mob s name, you can predict its egg ID: 
+
+ /give @s minecraft:creeper_spawn_egg 1
+/give @p minecraft:pig_spawn_egg 
+
+ If you d rather place mobs directly rather than hand out eggs, see our Minecraft summon command guide . 
+
+ Using IDs with /give and Data Components 
+
+ The primary way to spawn any item by ID is the /give command: 
+
+ /give [ ] [ ] 
+
+ The is any valid item ID, optionally followed by data components in square brackets. This is a critical change: since 1.20.5, item data uses data components (bracket syntax), not the old NBT {tag=...} syntax. The count is an integer from 1 to 2,147,483,647 (default 1), and /give requires permission level 2 (op). Selectors can target players: @s (self), @p (nearest player), @a (everyone), @r (random), and @e (all entities, filtered like @e[type=player] ). A safety limit of 100 stacks applies; in 26.2, exceeding it prints an error message (this becomes a hard command error in 26.3). 
+
+ /give @s minecraft:diamond_sword 1
+/give @p diamond_sword[enchantments={"minecraft:sharpness":5}] 1
+/give @s minecraft:enchanted_book[stored_enchantments={"minecraft:mending":1}] 1
+/give @a potion[potion_contents={potion:"minecraft:night_vision"}] 1 
+
+ Note the flattened enchantment form enchantments={"minecraft:sharpness":5} — the old nested levels:{} wrapper is gone. For a full breakdown of arguments, see our Minecraft give command guide , the target selectors reference , and the full enchantments list . 
+
+ Find Any Item s ID In-Game with F3+H 
+
+ The fastest way to look up an exact ID — without any external reference — is the Advanced Tooltips debug toggle. Hold F3 and tap H (on some laptops Fn+F3+H ). A message confirms advanced tooltips are shown or hidden. With them on, hovering any item in an inventory or the Creative menu displays that item s full namespaced ID (e.g. minecraft:diamond_sword ) at the bottom of the tooltip, plus exact durability ( Durability: X / Y ) on tools and armor. 
+
+ This toggle is client-side and needs no op, so any player can use it. It is Java Edition only and is not available in Bedrock. 
+
+ How to Run These 
+
+ Chat: Press T or / to open chat, type the command beginning with / , and press Enter. You must be an operator (permission level 2+) for /give . 
+ Command block: Obtain one with /give @s minecraft:command_block 1 , place it, and paste the command without the leading slash. Command blocks run at operator level. 
+ Server console: On a dedicated server, type the command directly into the console with no leading slash. Managing your own box makes op-level commands trivial — see Minecraft server hosting . 
+
+ For broader command references, browse our Minecraft commands list , gamerules list , teleport commands , and keep inventory command . 
+
+ Java vs Bedrock 
+
+ Java Edition uses only namespaced string IDs (resource locations) — it has had no user-facing numeric item IDs since the 1.13 flattening. Bedrock Edition historically exposed numeric IDs and data (aux) values, and legacy numbers still surface in some Bedrock contexts and older tools, though modern Bedrock commands also accept string identifiers like minecraft:diamond_sword . 
+
+ The practical takeaway: if a guide lists a plain number such as 276 for a diamond sword, that is legacy Bedrock/pre-1.13 data and will not work in Java 26.2. Always use the string ID in Java. The F3+H advanced-tooltip lookup described above is also Java-only. 
+
+ Frequently Asked Questions 
+
+ What is the numeric ID for a diamond sword in Java? 
+
+ There isn t one. Java Edition removed numeric item IDs in the 1.13 flattening. Use the string ID minecraft:diamond_sword . The legacy number 276 you may see online is old Bedrock/pre-1.13 data and does not work in Java 26.2. 
+
+ Do I need to type minecraft: before every ID? 
+
+ No — for vanilla items the minecraft: prefix is optional in commands, so diamond_sword works the same as minecraft:diamond_sword . You do need it when referencing datapack or mod content that uses a different namespace. 
+
+ How do I find the ID of an item I m holding? 
+
+ Press F3+H to enable Advanced Tooltips, then hover over the item in your inventory or the Creative menu. Its full namespaced ID appears at the bottom of the tooltip, along with durability details on tools and armor. 
+
+ Why doesn t the old {tag} enchantment syntax work? 
+
+ Since 1.20.5, item data is expressed with data components in square brackets, not the old NBT tag= syntax. Enchantments now use the flattened form, e.g. [enchantments={"minecraft:sharpness":5}] , with no nested levels:{} wrapper. 
+
+ Where can I find a complete list of every item ID? 
+
+ Java has over 1,000 items, so this page covers the most-needed ones. For an exhaustive catalog, use the Java Edition data values page, or look up items in-game with F3+H. To build valid commands quickly, use our Give Command tool . 
+
+ Ready to play? 
+ Run your own Minecraft server with XGamingServer 
+ Spin up an always-on Minecraft server your friends can join in minutes — no port-forwarding, no tech headaches. 
+
+ 99.9% Uptime SLA 
+ < 5 min Instant setup 
+ 24/7 Human support 
+ DDoS Protected 
+
+ Instant setup 
+ Your server is live in minutes with a one-click control panel. 
+
+ Mods & plugins 
+ Install mods, plugins and workshop content in a few clicks. 
+
+ DDoS protected 
+ Enterprise DDoS mitigation keeps your server online 24/7. 
+
+ Low-latency hardware 
+ Premium CPUs & NVMe SSDs for lag-free multiplayer. 
+
+ Free backups 
+ Automatic backups so your world is never lost. 
+
+ Real human support 
+ Gamers helping gamers — 24/7, no bots, no scripts. 
+
+ Pick your Minecraft plan & play in minutes 
+ See all plans 
+
+ Starter 
+ $8.40 /mo 
+ 4 GB RAM 
+ Renews $12/mo 
+ Buy now 
+
+ Most popular 
+ Novice 
+ $10.50 /mo 
+ 6 GB RAM 
+ Renews $15/mo 
+ Buy now 
+
+ Rookie 
+ $17.50 /mo 
+ 8 GB RAM 
+ Renews $25/mo 
+ Buy now 
+
+ Pro 
+ $24.50 /mo 
+ 12 GB RAM 
+ Renews $35/mo 
+ Buy now 
+
+ Popular Posts 
+
+ GROUND BRANCH Beginner s Guide (2026): Tips for New Operators 
+
+ July 17, 2026 
+
+ GROUND BRANCH Co-op Multiplayer Guide: Player Count How to Play 
+
+ July 17, 2026 
+
+ GROUND BRANCH Game Modes Explained (V1.0): Every PvE PvP Mode 
+
+ July 17, 2026 
+
+ GROUND BRANCH AI Difficulty Guide (V1.0): Tune Your Server 
+
+ July 17, 2026 
+
+ GROUND BRANCH Server Settings Guide: Server.ini, MapList Admins 
+
+ July 17, 2026 
+
+ Related Posts 
+
+ Minecraft Ocean Monument Guide: Elder Guardians, Sponges and Gold July 11, 2026 
+
+ Minecraft Woodland Mansion Guide: Totems, Secret Rooms and Loot July 11, 2026 
+
+ Minecraft Bastion Remnant Guide: Netherite Template, Loot and Piglins July 11, 2026 
+
+ Trending now
+
+ Minecraft , Plugins & Mods How to install Plugins on your Minecraft server 7 Days to Die How to install 7 days to die(7d2d) mods on a gaming server Valheim How to Add/Install Mods to a Valheim Server | BepInEx|uMod| V+ Valheim How to upload a Valheim game world on a dedicated Server

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jigsaw Agent</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div id="sidebar-header">
+        <span>Jigsaw Agent</span>
+        <button id="new-thread-btn">+</button>
+      </div>
+      <div id="model-type-selector">
+        <select id="model-type-select">
+          <option value="normal">Normal</option>
+          <option value="minecraft_expert">Minecraft Expert</option>
+          <option value="dumb_brain">Dumb Brain</option>
+        </select>
+      </div>
+      <nav id="thread-list"></nav>
+    </aside>
+
+    <div id="main">
+      <header id="header">
+        <span id="status-indicator">
+          <span id="status-dot"></span>
+          <span id="status-text">Ready</span>
+          <span id="status-animation" class="hidden">
+            <span class="status-track">
+              <span class="status-square"></span>
+              <span class="status-square"></span>
+              <span class="status-square"></span>
+              <span class="status-square"></span>
+              <span class="status-square"></span>
+            </span>
+          </span>
+        </span>
+        <span id="thread-title"></span>
+        <span id="root-path-display" class="hidden">
+          <span id="root-path-icon">📁</span>
+          <span id="root-path-text"></span>
+          <button id="root-path-edit-btn" title="Change project root">✏️</button>
+        </span>
+        <button id="close-browser-btn" title="Close browser" class="hidden">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e55" stroke-width="2">
+            <path d="M4 4l16 16M20 4l-16 16"/>
+          </svg>
+        </button>
+        <button id="export-btn" title="Export thread">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+        <button id="settings-btn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+        </button>
+        <div id="win-controls">
+          <button id="win-minimize" title="Minimize">─</button>
+          <button id="win-maximize" title="Maximize">□</button>
+          <button id="win-close" title="Close">✕</button>
+        </div>
+      </header>
+
+      <main id="chat">
+        <div id="messages"></div>
+        <button id="scroll-bottom-btn" class="hidden">↓ New messages</button>
+      </main>
+
+      <div id="loop-warning" class="hidden">
+        <span id="loop-warning-text">⚠️ AI has been running for 40+ turns. It may be stuck in a loop.</span>
+        <button id="loop-stop-btn">Stop</button>
+        <button id="loop-ignore-btn">Ignore</button>
+      </div>
+
+      <div id="compact-bar" class="hidden">
+        <span id="compact-text">Compacting conversation to save context space...</span>
+      </div>
+
+      <div id="root-path-editor" class="hidden">
+        <input type="text" id="root-path-input" placeholder="Absolute path to project root">
+        <button id="root-path-save">Set</button>
+        <button id="root-path-cancel">Cancel</button>
+      </div>
+      <footer id="input-area">
+        <div id="mention-dropdown" class="hidden"></div>
+        <div id="command-dropdown" class="hidden"></div>
+        <textarea id="input" rows="1" placeholder="Type a message... (@ to reference files, / for commands)" dir="auto"></textarea>
+        <button id="send-btn">Send</button>
+      </footer>
+      <div id="queue-bar" class="hidden">
+        <span id="queue-count">0</span>
+        <span id="queue-label">messages queued</span>
+        <button id="queue-clear">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-page" class="hidden">
+    <div id="settings-page-header">
+      <span>Settings</span>
+      <button id="settings-close">&times;</button>
+    </div>
+    <div id="settings-categories">
+      <button class="settings-cat-btn active" data-cat="mode">Mode</button>
+      <button class="settings-cat-btn" data-cat="browser">Browser</button>
+      <button class="settings-cat-btn" data-cat="apikeys">API Keys</button>
+      <button class="settings-cat-btn" data-cat="tools">Tools</button>
+    </div>
+    <div id="settings-page-body">
+      <div class="settings-panel active" id="settings-panel-mode">
+        <div class="settings-section">
+          <div class="settings-section-title">Mode</div>
+          <div class="settings-desc">
+            <b>YOLO</b> — skip all approvals, do everything.<br>
+            <b>Auto-Approve</b> — auto-approve safe operations (inside project root, non-sensitive files). Prompts for operations outside root or on env files.<br>
+            <b>Off (Manual)</b> — every tool call shows an approval popup.
+          </div>
+          <label class="settings-row">
+            <span>YOLO — skip all approvals</span>
+            <input type="radio" name="mode-select" value="yolo">
+          </label>
+          <label class="settings-row">
+            <span>Auto-Approve — safe ops auto, prompts for unsafe</span>
+            <input type="radio" name="mode-select" value="auto-approve">
+          </label>
+          <label class="settings-row">
+            <span>Manual — every tool call requires approval</span>
+            <input type="radio" name="mode-select" value="manual">
+          </label>
+        </div>
+      </div>
+      <div class="settings-panel" id="settings-panel-browser">
+        <div class="settings-section">
+          <div class="settings-section-title">Browser</div>
+          <label class="settings-row">
+            <span>Show browser window (visible when AI uses the browser)</span>
+            <input type="checkbox" id="settings-show-browser">
+          </label>
+        </div>
+      </div>
+      <div class="settings-panel" id="settings-panel-apikeys">
+        <div class="settings-section">
+          <div class="settings-section-title">API Keys</div>
+          <div class="settings-desc">Configure API keys for AI providers. Changes take effect immediately.</div>
+          <div class="settings-apikey-group">
+            <label class="settings-row">
+              <span>OpenRouter API Key</span>
+              <div class="settings-apikey-input-wrap">
+                <input type="password" class="settings-apikey-input" id="settings-or-key" spellcheck="false">
+                <button class="settings-apikey-toggle" tabindex="-1">Show</button>
+              </div>
+            </label>
+            <label class="settings-row">
+              <span>OpenRouter Model</span>
+              <input type="text" class="settings-text-input" id="settings-or-model" spellcheck="false">
+            </label>
+          </div>
+          <div class="settings-apikey-group">
+            <label class="settings-row">
+              <span>Gemini API Key</span>
+              <div class="settings-apikey-input-wrap">
+                <input type="password" class="settings-apikey-input" id="settings-gemini-key" spellcheck="false">
+                <button class="settings-apikey-toggle" tabindex="-1">Show</button>
+              </div>
+            </label>
+            <label class="settings-row">
+              <span>Gemini Model</span>
+              <input type="text" class="settings-text-input" id="settings-gemini-model" spellcheck="false">
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-panel" id="settings-panel-tools">
+        <div class="settings-section">
+          <div class="settings-section-title">Tools</div>
+          <div class="settings-desc">Enable/disable tools and set auto-approve per tool.</div>
+          <div id="settings-tools-list"></div>
+        </div>
+      </div>
+    </div>
+    <div id="settings-page-footer">
+      <button id="settings-save">Save</button>
+    </div>
+  </div>
+
+  <div id="context-overlay" class="hidden"></div>
+  <div id="context-menu" class="hidden">
+    <div class="context-title">Message Actions</div>
+    <button data-action="revert">Revert (delete from here)</button>
+    <button data-action="fork">Fork to new thread</button>
+    <button data-action="copy">Copy text</button>
+    <button data-action="cancel">Cancel</button>
+  </div>
+
+  <div id="export-overlay" class="hidden"></div>
+  <div id="export-modal" class="hidden">
+    <div id="export-header">
+      <span>Export Thread</span>
+      <button id="export-close">&times;</button>
+    </div>
+    <div id="export-body">
+      <button id="export-markdown" class="export-option">
+        <span class="export-option-icon">📝</span>
+        <span class="export-option-title">Markdown</span>
+        <span class="export-option-desc">Plain text with formatting</span>
+      </button>
+      <button id="export-json" class="export-option">
+        <span class="export-option-icon">📋</span>
+        <span class="export-option-title">JSON</span>
+        <span class="export-option-desc">Raw data with metadata</span>
+      </button>
+    </div>
+  </div>
+
+  <div id="approve-overlay" class="hidden"></div>
+  <div id="approve-modal" class="hidden">
+    <div id="approve-header">
+      <span>Approve Tool</span>
+    </div>
+    <div id="approve-body">
+      <div id="approve-tool-name"></div>
+      <div id="approve-tool-args"></div>
+      <div id="approve-warnings"></div>
+    </div>
+    <div id="approve-footer">
+      <button id="approve-reject">Reject</button>
+      <button id="approve-accept">Approve</button>
+    </div>
+  </div>
+
+  <div id="ask-overlay" class="hidden"></div>
+  <div id="ask-modal" class="hidden">
+    <div id="ask-header">
+      <span>AI is asking</span>
+    </div>
+    <div id="ask-body"></div>
+    <div id="ask-footer">
+      <button id="ask-submit">Submit</button>
+    </div>
+  </div>
+
+  <div id="confirm-overlay" class="hidden"></div>
+  <div id="confirm-modal" class="hidden">
+    <div id="confirm-header">
+      <span id="confirm-title">Confirm</span>
+    </div>
+    <div id="confirm-body">
+      <p id="confirm-message"></p>
+    </div>
+    <div id="confirm-footer">
+      <button id="confirm-cancel">Cancel</button>
+      <button id="confirm-ok">OK</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="/script.js"></script>
+</body>
+</html>

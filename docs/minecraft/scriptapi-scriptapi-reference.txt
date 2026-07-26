@@ -1,0 +1,63 @@
+Source: https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/?view=minecraft-bedrock-stable
+Title: Script API Reference Documentation | Microsoft Learn
+Category: scriptapi
+Fetched: 2026-07-20T16:47:38.537Z
+
+============================================================
+
+Table of contents 
+
+ Read in English 
+
+ Edit 
+
+ Script API Reference Documentation 
+ Landing page containing a high-level introduction of experimental Script APIs for Minecraft: Bedrock Edition. 
+
+ Getting Started with Script APIs 
+
+ How-To Guide
+
+ Use Visual Studio Code tools to write script 
+
+ Building your first GameTest 
+
+ Creating a simple gameplay experience 
+
+ Scripting Bedrock Dedicated Server 
+
+ Concept
+
+ Introduction to the GameTest Framework 
+
+ minecraft/server 
+
+ Overview
+
+ minecraft/server Module 
+
+ Reference
+
+ World Class 
+
+ Dimension Class 
+
+ Block Class 
+
+ Entity Class 
+
+ ItemStack Class 
+
+ minecraft/server-ui 
+
+ Overview
+
+ minecraft/server-ui Module 
+
+ Reference
+
+ ActionFormData Class 
+
+ MessageFormData Class 
+
+ ModalFormData Class
