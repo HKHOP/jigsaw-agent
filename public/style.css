@@ -1044,13 +1044,6 @@ html, body {
   transition: width 0.3s ease;
 }
 
-#update-settings-check-btn:disabled,
-#update-settings-download-btn:disabled,
-#update-settings-install-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* --- Loop warning bar --- */
 #loop-warning {
   display: flex;
@@ -1261,6 +1254,29 @@ html, body {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+.settings-btn {
+  background: #1a1a2a;
+  border: 1px solid #333;
+  color: #ccc;
+  padding: 6px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  border-radius: 3px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-btn:hover:not(:disabled) {
+  background: #2a2a3a;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+.settings-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #setting-paths {

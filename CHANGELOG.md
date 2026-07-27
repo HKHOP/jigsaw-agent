@@ -6,12 +6,17 @@
 - Elevated Permissions setting in Mode category — allows AI to access paths beyond project root
 - Human-readable display names for all tools in approval popups and chat bubbles
 - Collapsible command output for `run_command` — shows the command, stdout, and stderr in an expandable terminal-style section
+- Update progress bar with download speed display in the update bar
+- Manual update management in Settings → Updates (Check for Updates, Download, Restart & Install)
+- Proper `update-not-available` and `update-error` event handling
 
 ### Changed
 - File system tools now enforce project root boundary (access outside root is denied unless Elevated Permissions is on)
 - Path handling is now case-insensitive and accepts both forward/backward slashes on Windows
 - Root path is normalized consistently across all tools and API endpoints
 - `inRootPath()` replaces the dead `checkPath()`/`denyCheck()` system
+- Update download flow fixed — "Download" now calls `downloadUpdate()` instead of `quitAndInstall()`
+- Dismissed update bar can be re-accessed from Settings → Updates
 
 ### Fixed
 - `run_command` now correctly reports failure when a command exits with non-zero exit code
