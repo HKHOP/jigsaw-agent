@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 — 2026-07-27
+
+### Added
+- Elevated Permissions setting in Mode category — allows AI to access paths beyond project root
+- Human-readable display names for all tools in approval popups and chat bubbles
+- Collapsible command output for `run_command` — shows the command, stdout, and stderr in an expandable terminal-style section
+
+### Changed
+- File system tools now enforce project root boundary (access outside root is denied unless Elevated Permissions is on)
+- Path handling is now case-insensitive and accepts both forward/backward slashes on Windows
+- Root path is normalized consistently across all tools and API endpoints
+- `inRootPath()` replaces the dead `checkPath()`/`denyCheck()` system
+
+### Fixed
+- `run_command` now correctly reports failure when a command exits with non-zero exit code
+- Missing path validation added to `find_files`, `download_file`, `hash_file`, `crypto_utils`, `browser_screenshot`, and `open_app`
+- `isToolUnsafe()` now properly normalizes rootPath instead of raw string manipulation
+
 ## 1.0.1 — 2026-07-26
 
 ### Fixed

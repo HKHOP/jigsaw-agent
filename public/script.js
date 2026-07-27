@@ -38,6 +38,7 @@ const settingsOrKey = document.getElementById('settings-or-key');
 const settingsOrModel = document.getElementById('settings-or-model');
 const settingsGeminiKey = document.getElementById('settings-gemini-key');
 const settingsGeminiModel = document.getElementById('settings-gemini-model');
+const elevatedCheck = document.getElementById('settings-elevated');
 
 let currentThreadId = null;
 let threads = [];
@@ -289,30 +290,31 @@ function renderMessages(messages) {
       wrapper.appendChild(thinkEl);
     }
 
-    if (m.role === 'tool') {
-      const toolBubble = document.createElement('div');
-      toolBubble.className = 'tool-bubble';
-      let parsed;
-      try { parsed = JSON.parse(m.content); } catch { parsed = null; }
-      const success = parsed && !parsed.error;
-      toolBubble.classList.add(success ? 'success' : 'error');
-      const toolName = m.tool_name || 'tool';
-      toolBubble.innerHTML = `
-        <div class="tool-bubble-header">
-          <span class="tool-bubble-name">${esc(toolName)}</span>
-          <span class="tool-bubble-status">${success ? 'Success' : 'Failed'}</span>
-        </div>
-        <div class="msg-time">${m.timestamp ? formatTime(m.timestamp) : ''}</div>
-      `;
-      if (parsed && parsed.error) {
-        const errEl = document.createElement('div');
-        errEl.className = 'tool-bubble-result';
-        errEl.textContent = parsed.error;
-        toolBubble.appendChild(errEl);
+      if (m.role === 'tool') {
+        const toolBubble = document.createElement('div');
+        toolBubble.className = 'tool-bubble';
+        let parsed;
+        try { parsed = JSON.parse(m.content); } catch { parsed = null; }
+        const success = parsed && !parsed.error;
+        toolBubble.classList.add(success ? 'success' : 'error');
+        const toolName = TOOL_DISPLAY_NAMES[m.tool_name] || m.tool_name || 'tool';
+        toolBubble.innerHTML = `
+          <div class="tool-bubble-header">
+            <span class="tool-bubble-name">${esc(toolName)}</span>
+            <span class="tool-bubble-status">${success ? 'Success' : 'Failed'}</span>
+          </div>
+          <div class="msg-time">${m.timestamp ? formatTime(m.timestamp) : ''}</div>
+        `;
+        renderCommandCollapsible(parsed, toolBubble);
+        if (parsed && parsed.error) {
+          const errEl = document.createElement('div');
+          errEl.className = 'tool-bubble-result';
+          errEl.textContent = parsed.error;
+          toolBubble.appendChild(errEl);
+        }
+        messagesEl.appendChild(toolBubble);
+        continue;
       }
-      messagesEl.appendChild(toolBubble);
-      continue;
-    }
 
     const el = document.createElement('div');
     el.className = `message ${m.role}`;
@@ -446,6 +448,52 @@ const TOOL_NAMES = [
   'db_list_tables', 'db_get_schema', 'db_query', 'db_execute', 'db_backup',
 ];
 
+const TOOL_DISPLAY_NAMES = {
+  read_file: 'Read a file',
+  write_file: 'Wrote a file',
+  edit_file: 'Edited a file',
+  list_dir: 'Listed a directory',
+  grep_search: 'Searched file contents',
+  run_command: 'Ran a command',
+  rename_file: 'Renamed a file',
+  delete_file: 'Deleted a file',
+  file_stats: 'Checked file stats',
+  create_dir: 'Created a directory',
+  read_env: 'Read environment variables',
+  git_operations: 'Ran a git operation',
+  glob_find: 'Found files by pattern',
+  watch_file: 'Watched a file',
+  web_search: 'Searched the web',
+  web_fetch: 'Fetched a webpage',
+  find_files: 'Found files',
+  network_info: 'Checked network info',
+  process_info: 'Checked running processes',
+  clipboard: 'Accessed the clipboard',
+  download_file: 'Downloaded a file',
+  hash_file: 'Hashed a file',
+  generate_password: 'Generated a password',
+  math_eval: 'Evaluated a math expression',
+  crypto_utils: 'Encrypted/decrypted a file',
+  ask: 'Asked a question',
+  browser_navigate: 'Navigated to a URL',
+  browser_click: 'Clicked an element',
+  browser_fill: 'Filled an input field',
+  browser_select: 'Selected an option',
+  browser_get_content: 'Got page content',
+  browser_screenshot: 'Took a screenshot',
+  browser_evaluate: 'Ran JavaScript in browser',
+  browser_hover: 'Hovered over an element',
+  browser_get_text: 'Got text from the page',
+  browser_close: 'Closed the browser',
+  db_list_tables: 'Listed database tables',
+  db_get_schema: 'Got database schema',
+  db_query: 'Queried the database',
+  db_execute: 'Executed a database command',
+  db_backup: 'Backed up the database',
+  list_apps: 'Listed installed apps',
+  open_app: 'Opened an application',
+};
+
 let settingsCache = null;
 
 function switchSettingsCat(cat) {
@@ -511,6 +559,7 @@ async function openSettings() {
   const val = settingsCache.yoloMode ? 'yolo' : settingsCache.autoApprove ? 'auto-approve' : 'manual';
   modeRadios.forEach(r => r.checked = r.value === val);
   showBrowserCheck.checked = settingsCache.browserHeadless !== false;
+  elevatedCheck.checked = settingsCache.elevatedPermissions || false;
   settingsOrKey.value = settingsCache.openrouterKey || '';
   settingsOrModel.value = settingsCache.openrouterModel || '';
   settingsGeminiKey.value = settingsCache.geminiKey || '';
@@ -583,6 +632,7 @@ settingsSave.addEventListener('click', async () => {
   await api('PUT', '/api/settings', {
     yoloMode: selected === 'yolo',
     autoApprove: selected === 'auto-approve',
+    elevatedPermissions: elevatedCheck.checked,
     browserHeadless: !showBrowserCheck.checked,
     openrouterKey: settingsOrKey.value,
     openrouterModel: settingsOrModel.value,
@@ -602,7 +652,7 @@ function exportAsMarkdown() {
       const time = m.timestamp ? formatTime(m.timestamp) : '';
       if (m.role === 'user') md += `**User** (${time}):\n${m.content}\n\n`;
       else if (m.role === 'assistant') md += `**Assistant** (${time}):\n${m.content}\n\n`;
-      else if (m.role === 'tool') md += `**Tool** (${m.tool_name || 'tool'}) (${time}):\n${m.content}\n\n`;
+      else if (m.role === 'tool') md += `**Tool** (${TOOL_DISPLAY_NAMES[m.tool_name] || m.tool_name || 'tool'}) (${time}):\n${m.content}\n\n`;
     }
     downloadFile(`${thread.name}.md`, md, 'text/markdown');
     closeExport();
@@ -654,6 +704,30 @@ const approveWarnings = document.getElementById('approve-warnings');
 const approveAccept = document.getElementById('approve-accept');
 const approveReject = document.getElementById('approve-reject');
 let pendingApprovalId = null;
+
+function renderCommandCollapsible(data, el) {
+  if (!data || !data.command) return;
+  const header = el.querySelector('.tool-bubble-header');
+  const toggle = document.createElement('span');
+  toggle.className = 'cmd-toggle';
+  toggle.textContent = '▶';
+  header.insertBefore(toggle, header.firstChild);
+  const summary = document.createElement('span');
+  summary.className = 'cmd-summary';
+  summary.textContent = 'Exit: ' + data.exitCode;
+  header.appendChild(summary);
+  const body = document.createElement('div');
+  body.className = 'cmd-body hidden';
+  let html = '<div class="cmd-line"><span class="cmd-prompt">$</span> ' + esc(data.command) + '</div>';
+  if (data.stdout) html += '<pre class="cmd-stdout">' + esc(data.stdout) + '</pre>';
+  if (data.stderr) html += '<pre class="cmd-stderr">' + esc(data.stderr) + '</pre>';
+  body.innerHTML = html;
+  el.appendChild(body);
+  toggle.addEventListener('click', function () {
+    body.classList.toggle('hidden');
+    toggle.textContent = body.classList.contains('hidden') ? '▶' : '▼';
+  });
+}
 
 function showApproval(data) {
   pendingApprovalId = data.id;
@@ -1395,6 +1469,7 @@ async function send() {
               if (statusEl) {
                 statusEl.textContent = parsed.toolResult.success ? 'Success' : 'Failed';
               }
+              renderCommandCollapsible(parsed.toolResult.data, toolBubbleEl);
               if (parsed.toolResult.error) {
                 const errEl = document.createElement('div');
                 errEl.className = 'tool-bubble-result';

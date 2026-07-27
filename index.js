@@ -7,7 +7,7 @@ const { Worker } = require('node:worker_threads');
 const WORKER_PATH = path.join(__dirname, 'worker.js');
 const os = require('node:os');
 const { generateReply, streamReply, compactMessages, estimateMessagesTokens } = require('./ai');
-const { executeTool } = require('./tools');
+const { executeTool, getToolDisplayName } = require('./tools');
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -179,10 +179,10 @@ app.post('/api/threads/:id/stream', async (req, res) => {
       const approvalId = 'ap_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
       pendingApprovals[approvalId] = resolve;
       const warnings = [];
-      if (isToolUnsafe(toolCall.name, toolCall.arguments || {}, thread.rootPath)) {
+      if (isToolUnsafe(toolCall.name, toolCall.arguments || {}, thread.rootPath, settings)) {
         warnings.push('Operation may access files outside the project root or sensitive files.');
       }
-      sse({ toolPending: { id: approvalId, name: toolCall.name, args: toolCall.arguments || {}, warnings } });
+      sse({ toolPending: { id: approvalId, name: getToolDisplayName(toolCall.name, toolCall.arguments), args: toolCall.arguments || {}, warnings } });
       setTimeout(() => {
         if (pendingApprovals[approvalId]) {
           delete pendingApprovals[approvalId];
@@ -253,7 +253,7 @@ The above summary replaces messages before this point. Continuing with the curre
       }
 
       if (toolCall.name === 'ask') {
-        sse({ toolStart: 'ask', toolArgs: toolCall.arguments || {} });
+        sse({ toolStart: getToolDisplayName('ask'), toolArgs: toolCall.arguments || {} });
 
         const validation = await executeTool('ask', toolCall.arguments || {}, settings, thread.rootPath);
         if (validation.error) {
@@ -261,7 +261,7 @@ The above summary replaces messages before this point. Continuing with the curre
           const toolMsg = { role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' };
           await workerTask('append', { threadId: req.params.id, role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' });
           messages.push(toolMsg);
-          sse({ toolResult: { name: 'ask', success: false, error: validation.error } });
+          sse({ toolResult: { name: getToolDisplayName('ask'), success: false, error: validation.error } });
           sse({ turnEnd: true });
           continue;
         }
@@ -283,7 +283,7 @@ The above summary replaces messages before this point. Continuing with the curre
           const toolMsg = { role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' };
           await workerTask('append', { threadId: req.params.id, role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' });
           messages.push(toolMsg);
-          sse({ toolResult: { name: 'ask', success: false, error: 'User did not respond' } });
+          sse({ toolResult: { name: getToolDisplayName('ask'), success: false, error: 'User did not respond' } });
           sse({ turnEnd: true });
           continue;
         }
@@ -292,12 +292,12 @@ The above summary replaces messages before this point. Continuing with the curre
         const toolMsg = { role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' };
         await workerTask('append', { threadId: req.params.id, role: 'tool', content: resultStr, tool_call_id: toolCall.id || '', tool_name: 'ask' });
         messages.push(toolMsg);
-        sse({ toolResult: { name: 'ask', success: true } });
+        sse({ toolResult: { name: getToolDisplayName('ask'), success: true } });
         sse({ turnEnd: true });
         continue;
       }
 
-      const toolDisplayName = toolCall.name === 'invent_tool' ? (toolCall.arguments?.name || 'invent_tool') : toolCall.name;
+      const toolDisplayName = getToolDisplayName(toolCall.name, toolCall.arguments);
 
       sse({ toolStart: toolDisplayName, toolArgs: toolCall.arguments });
 
@@ -310,7 +310,7 @@ The above summary replaces messages before this point. Continuing with the curre
         // Per-tool auto-approve: skip approval
       } else if (settings.autoApprove) {
         // Auto-Approve mode: only block unsafe operations
-        if (isToolUnsafe(toolCall.name, toolCall.arguments || {}, thread.rootPath)) {
+        if (isToolUnsafe(toolCall.name, toolCall.arguments || {}, thread.rootPath, settings)) {
           approved = await requestApproval(toolCall, settings);
         }
       } else {
@@ -345,7 +345,7 @@ The above summary replaces messages before this point. Continuing with the curre
       });
       messages.push(toolMsg);
 
-      sse({ toolResult: { name: toolDisplayName, success, error: result?.error || null } });
+      sse({ toolResult: { name: toolDisplayName, success, error: result?.error || null, data: result } });
       sse({ turnEnd: true });
       continue;
     }
@@ -378,6 +378,7 @@ function readSettings() {
     const defaults = {
       yoloMode: false,
       autoApprove: false,
+      elevatedPermissions: false,
       tools: {},
       openrouterKey: process.env.OPENROUTER_API_KEY || '',
       openrouterModel: process.env.OPENROUTER_MODEL || '',
@@ -457,7 +458,7 @@ app.post('/api/file-search', (req, res) => {
   const query = (req.body.query || '').trim();
   if (!query || query.length < 1) return res.json([]);
   const results = [];
-  const root = req.body.root || 'C:\\';
+  const root = path.resolve(req.body.root || 'C:\\');
   const maxResults = 20;
 
   function walk(dir) {
@@ -481,7 +482,7 @@ app.post('/api/file-search', (req, res) => {
 });
 
 app.post('/api/file-batch', (req, res) => {
-  const paths = req.body.paths || [];
+  const paths = (req.body.paths || []).map(p => path.resolve(p));
   const contents = [];
   for (const fp of paths) {
     try {
@@ -499,7 +500,7 @@ app.post('/api/threads/:id/root-path', async (req, res) => {
   try {
     const result = await workerTask('set_root', {
       threadId: req.params.id,
-      rootPath: req.body.rootPath || '',
+      rootPath: req.body.rootPath ? path.resolve(req.body.rootPath) : '',
     });
     if (!result) { res.status(404).send('Not Found'); return; }
     res.json(result);
@@ -557,23 +558,23 @@ app.post('/api/threads/:id/use-gemini', async (req, res) => {
   }
 });
 
-function isToolUnsafe(name, args, rootPath) {
+function isToolUnsafe(name, args, rootPath, settings) {
   if (name === 'run_command' || name === 'read_env') return true;
   if (name === 'browser_evaluate') return true;
   if (name === 'db_execute') return true;
-  const sensitivePaths = ['.env', '.env.local', '.env.production', 'config\\.env'];
+  const sensitivePaths = ['.env', '.env.local', '.env.production', 'config/.env'];
   const pathArgs = ['path', 'dir', 'input', 'output', 'source', 'destination'];
   for (const key of pathArgs) {
     if (args[key]) {
-      const p = path.resolve(args[key]);
-      if (rootPath) {
-        const root = rootPath.replace(/\\$/, '');
-        if (!p.toLowerCase().startsWith(root.toLowerCase() + '\\') && !p.toLowerCase().startsWith(root.toLowerCase() + '/')) {
+      const p = path.resolve(args[key]).toLowerCase().replace(/\\/g, '/');
+      if (rootPath && !settings?.elevatedPermissions) {
+        const root = path.resolve(rootPath).toLowerCase().replace(/\\/g, '/').replace(/\/$/, '');
+        if (!p.startsWith(root + '/')) {
           return true;
         }
       }
       for (const sens of sensitivePaths) {
-        if (p.toLowerCase().includes(sens.toLowerCase())) return true;
+        if (p.includes(sens)) return true;
       }
     }
   }

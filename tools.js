@@ -632,41 +632,36 @@ function maskSensitive(value, key) {
   return value.slice(0, 2) + '****' + value.slice(-2);
 }
 
-function checkPath(p, allowedPaths) {
+function inRootPath(p, rootPath, settings) {
+  if (!rootPath) return true;
+  if (settings?.elevatedPermissions) return true;
   const resolved = path.resolve(p);
-  if (!allowedPaths || allowedPaths.length === 0) return true;
-  return allowedPaths.some(a => {
-    const allowed = path.resolve(a);
-    return resolved === allowed || resolved.startsWith(allowed + path.sep);
-  });
+  const root = path.resolve(rootPath);
+  const normalized = resolved.toLowerCase().replace(/\\/g, '/');
+  const rootNorm = root.toLowerCase().replace(/\\/g, '/').replace(/\/$/, '');
+  return normalized === rootNorm || normalized.startsWith(rootNorm + '/');
 }
 
 async function executeTool(name, args, settings, rootPath) {
-  const allowedPaths = [];
   const toolCfg = settings?.tools?.[name] || {};
 
-  const base = (rootPath && rootPath.trim()) ? rootPath : 'C:\\';
+  const base = (rootPath && rootPath.trim()) ? path.resolve(rootPath) : ((process.env.SystemDrive || 'C:') + path.sep);
   const PATH_ARGS = ['path', 'dir', 'input', 'output', 'source', 'destination', 'searchPath'];
   for (const key of PATH_ARGS) {
-    if (args[key] && !path.isAbsolute(args[key])) {
+    if (args[key]) {
       args[key] = path.resolve(base, args[key]);
     }
   }
 
-  function denyCheck(p) {
-    if (allowedPaths.length > 0) return !checkPath(p, allowedPaths);
-    return false;
-  }
-
   switch (name) {
     case 'read_file': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const content = fs.readFileSync(args.path, 'utf-8');
       return { content, size: content.length, path: path.resolve(args.path) };
     }
 
     case 'write_file': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dir = path.dirname(args.path);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(args.path, args.content, 'utf-8');
@@ -674,7 +669,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'edit_file': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const content = fs.readFileSync(args.path, 'utf-8');
       const idx = content.indexOf(args.old_string);
       if (idx === -1) return { error: `old_string not found in file` };
@@ -684,7 +679,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'list_dir': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const entries = fs.readdirSync(args.path, { withFileTypes: true });
       const listing = entries.map(e => ({
         name: e.name,
@@ -696,7 +691,7 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'grep_search': {
       const root = args.path || '.';
-      if (denyCheck(root)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(root, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const results = [];
       const includeFilter = args.include ? new RegExp(args.include.replace(/\*/g, '.*')) : null;
       const pattern = new RegExp(args.pattern, 'gi');
@@ -731,15 +726,15 @@ async function executeTool(name, args, settings, rootPath) {
       const maxBuffer = 1024 * 1024;
       try {
         const output = execSync(args.command, { cwd, maxBuffer, encoding: 'utf-8', timeout: 30000 });
-        return { stdout: output, stderr: '', exitCode: 0 };
+        return { command: args.command, workdir: cwd, stdout: output, stderr: '', exitCode: 0 };
       } catch (e) {
-        return { stdout: e.stdout || '', stderr: e.stderr || e.message, exitCode: e.status || 1 };
+        return { command: args.command, workdir: cwd, stdout: e.stdout || '', stderr: e.stderr || e.message, exitCode: e.status || 1, error: `Command failed (exit code ${e.status || 1})` };
       }
     }
 
     case 'rename_file': {
-      if (denyCheck(args.source) || denyCheck(args.destination)) {
-        return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.source, rootPath, settings) || !inRootPath(args.destination, rootPath, settings)) {
+        return { error: 'Access denied: path outside project root' };
       }
       const dir = path.dirname(args.destination);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -748,7 +743,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'delete_file': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const stat = fs.statSync(args.path);
       const type = stat.isDirectory() ? 'directory' : 'file';
       fs.rmSync(args.path, { recursive: true, force: true });
@@ -756,7 +751,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'file_stats': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const stat = fs.statSync(args.path);
       return {
         path: path.resolve(args.path),
@@ -770,7 +765,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'create_dir': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       fs.mkdirSync(args.path, { recursive: true });
       return { ok: true, path: path.resolve(args.path) };
     }
@@ -801,7 +796,7 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'glob_find': {
       const root = args.path ? path.resolve(args.path) : process.cwd();
-      if (denyCheck(root)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(root, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const pattern = args.pattern;
       const regex = new RegExp('^' + pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/\\\\]*').replace(/\?/g, '.') + '$', 'i');
       const matches = [];
@@ -822,7 +817,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'watch_file': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try {
         const stat = fs.statSync(args.path);
         return {
@@ -927,6 +922,7 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'find_files': {
       const searchPath = args.path || '.';
+      if (!inRootPath(searchPath, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const maxResults = Math.min(args.maxResults || 50, 500);
       const results = [];
 
@@ -1008,6 +1004,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'download_file': {
+      if (args.output && !inRootPath(args.output, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try {
         const resp = await fetch(args.url);
         if (!resp.ok) return { error: `Download failed: ${resp.status} ${resp.statusText}` };
@@ -1020,6 +1017,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'hash_file': {
+      if (args.path && !inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try {
         const algo = args.algorithm || 'sha256';
         const hash = crypto.createHash(algo);
@@ -1082,6 +1080,7 @@ async function executeTool(name, args, settings, rootPath) {
     }
 
     case 'crypto_utils': {
+      if (!inRootPath(args.input, rootPath, settings) || !inRootPath(args.output, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try {
         const { action, input, output, password } = args;
         const key = crypto.scryptSync(password, 'salt', 32);
@@ -1257,6 +1256,7 @@ async function executeTool(name, args, settings, rootPath) {
     case 'browser_screenshot': {
       const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
+      if (args.path && !inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       return await bm.screenshot(args.path || null);
     }
 
@@ -1287,31 +1287,31 @@ async function executeTool(name, args, settings, rootPath) {
     /* ---- Database tools ---- */
 
     case 'db_list_tables': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dm = require('./db-manager');
       return await dm.listTables(args.path);
     }
 
     case 'db_get_schema': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dm = require('./db-manager');
       return await dm.getSchema(args.path, args.table);
     }
 
     case 'db_query': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dm = require('./db-manager');
       return await dm.query(args.path, args.sql, args.params);
     }
 
     case 'db_execute': {
-      if (denyCheck(args.path)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dm = require('./db-manager');
       return await dm.execute(args.path, args.sql, args.params);
     }
 
     case 'db_backup': {
-      if (denyCheck(args.path) || denyCheck(args.output)) return { error: 'Access denied: path not in allowed paths' };
+      if (!inRootPath(args.path, rootPath, settings) || !inRootPath(args.output, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dm = require('./db-manager');
       return await dm.backup(args.path, args.output);
     }
@@ -1334,6 +1334,7 @@ async function executeTool(name, args, settings, rootPath) {
     case 'open_app': {
       const appPath = args.path;
       if (!appPath || typeof appPath !== 'string') return { error: 'Path is required' };
+      if (!inRootPath(appPath, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       if (!fs.existsSync(appPath)) return { error: `File not found: ${appPath}` };
       try {
         const { spawn } = require('node:child_process');
@@ -1349,4 +1350,57 @@ async function executeTool(name, args, settings, rootPath) {
   }
 }
 
-module.exports = { TOOL_DEFINITIONS, executeTool };
+const TOOL_DISPLAY_NAMES = {
+  read_file: 'Read a file',
+  write_file: 'Wrote a file',
+  edit_file: 'Edited a file',
+  list_dir: 'Listed a directory',
+  grep_search: 'Searched file contents',
+  run_command: 'Ran a command',
+  rename_file: 'Renamed a file',
+  delete_file: 'Deleted a file',
+  file_stats: 'Checked file stats',
+  create_dir: 'Created a directory',
+  read_env: 'Read environment variables',
+  git_operations: 'Ran a git operation',
+  glob_find: 'Found files by pattern',
+  watch_file: 'Watched a file',
+  web_search: 'Searched the web',
+  web_fetch: 'Fetched a webpage',
+  find_files: 'Found files',
+  network_info: 'Checked network info',
+  process_info: 'Checked running processes',
+  clipboard: 'Accessed the clipboard',
+  download_file: 'Downloaded a file',
+  hash_file: 'Hashed a file',
+  generate_password: 'Generated a password',
+  math_eval: 'Evaluated a math expression',
+  crypto_utils: 'Encrypted/decrypted a file',
+  ask: 'Asked a question',
+  browser_navigate: 'Navigated to a URL',
+  browser_click: 'Clicked an element',
+  browser_fill: 'Filled an input field',
+  browser_select: 'Selected an option',
+  browser_get_content: 'Got page content',
+  browser_screenshot: 'Took a screenshot',
+  browser_evaluate: 'Ran JavaScript in browser',
+  browser_hover: 'Hovered over an element',
+  browser_get_text: 'Got text from the page',
+  browser_close: 'Closed the browser',
+  db_list_tables: 'Listed database tables',
+  db_get_schema: 'Got database schema',
+  db_query: 'Queried the database',
+  db_execute: 'Executed a database command',
+  db_backup: 'Backed up the database',
+  list_apps: 'Listed installed apps',
+  open_app: 'Opened an application',
+  see_documentation: 'Looked up documentation',
+  invent_tool: 'Ran a custom tool',
+};
+
+function getToolDisplayName(name, args) {
+  if (name === 'invent_tool' && args?.name) return args.name;
+  return TOOL_DISPLAY_NAMES[name] || name;
+}
+
+module.exports = { TOOL_DEFINITIONS, executeTool, getToolDisplayName };
