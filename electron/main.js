@@ -23,6 +23,12 @@ ipcMain.handle('win-close', () => mainWindow?.close());
 ipcMain.handle('restart-and-update', () => {
   autoUpdater.quitAndInstall(false, true);
 });
+ipcMain.handle('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+ipcMain.handle('check-for-updates', () => {
+  autoUpdater.checkForUpdates().catch(() => {});
+});
 
 const DATA_DIR = app.getPath('userData');
 const PROJECT_DIR = path.dirname(__dirname);
@@ -113,6 +119,10 @@ function setupAutoUpdater() {
     mainWindow?.webContents.send('update-available', info);
   });
 
+  autoUpdater.on('update-not-available', () => {
+    mainWindow?.webContents.send('update-not-available');
+  });
+
   autoUpdater.on('download-progress', (progress) => {
     mainWindow?.webContents.send('update-download-progress', progress);
   });
@@ -122,10 +132,8 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('Auto-updater error:', err);
+    mainWindow?.webContents.send('update-error', err?.message || err?.toString() || 'Unknown error');
   });
-
-  autoUpdater.checkForUpdates().catch(() => {});
 }
 
 app.whenReady().then(async () => {

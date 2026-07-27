@@ -1564,36 +1564,107 @@ input.addEventListener('input', () => {
 
 const updateBar = document.getElementById('update-bar');
 const updateText = document.getElementById('update-text');
-const updateProgress = document.getElementById('update-progress');
+const updateSpeed = document.getElementById('update-speed');
+const updateProgressPct = document.getElementById('update-progress-pct');
+const updateProgressTrack = document.getElementById('update-progress-track');
+const updateProgressFill = document.getElementById('update-progress-fill');
 const updateDownloadBtn = document.getElementById('update-download-btn');
 const updateInstallBtn = document.getElementById('update-install-btn');
 const updateCloseBtn = document.getElementById('update-close-btn');
 
+const updateSettingsStatus = document.getElementById('update-settings-status');
+const updateSettingsProgressArea = document.getElementById('update-settings-progress-area');
+const updateSettingsSpeed = document.getElementById('update-settings-speed');
+const updateSettingsProgressTrack = document.getElementById('update-settings-progress-track');
+const updateSettingsProgressFill = document.getElementById('update-settings-progress-fill');
+const updateSettingsCheckBtn = document.getElementById('update-settings-check-btn');
+const updateSettingsDownloadBtn = document.getElementById('update-settings-download-btn');
+const updateSettingsInstallBtn = document.getElementById('update-settings-install-btn');
+
+function formatSpeed(bytesPerSec) {
+  if (bytesPerSec >= 1048576) return (bytesPerSec / 1048576).toFixed(1) + ' MB/s';
+  if (bytesPerSec >= 1024) return (bytesPerSec / 1024).toFixed(0) + ' KB/s';
+  return bytesPerSec.toFixed(0) + ' B/s';
+}
+
+function setUpdateProgress(percent, speed, barFillEl, pctEl, speedEl, trackEl) {
+  if (!trackEl) return;
+  trackEl.classList.remove('hidden');
+  if (barFillEl) barFillEl.style.width = Math.round(percent) + '%';
+  if (pctEl) pctEl.textContent = Math.round(percent) + '%';
+  if (speedEl && speed !== undefined) {
+    speedEl.textContent = formatSpeed(speed);
+    speedEl.classList.remove('hidden');
+  }
+}
+
+let updateInfo = null;
+let updateDownloaded = false;
+
 if (window.electronAPI) {
   window.electronAPI.onUpdateAvailable((info) => {
-    updateText.textContent = `Version ${info.version} available`;
+    updateInfo = info;
+    const txt = 'v' + info.version + ' available';
+    updateText.textContent = 'Version ' + info.version + ' available';
     updateDownloadBtn.classList.remove('hidden');
     updateInstallBtn.classList.add('hidden');
-    updateProgress.classList.add('hidden');
+    updateProgressTrack.classList.add('hidden');
+    updateSpeed.classList.add('hidden');
+    updateProgressPct.classList.add('hidden');
     updateBar.classList.remove('hidden');
+
+    updateSettingsStatus.textContent = txt;
+    updateSettingsDownloadBtn.classList.remove('hidden');
+    updateSettingsInstallBtn.classList.add('hidden');
+    updateSettingsProgressArea.classList.add('hidden');
+    updateSettingsCheckBtn.textContent = 'Check Again';
+  });
+
+  window.electronAPI.onUpdateNotAvailable(() => {
+    updateSettingsStatus.textContent = 'You already have the latest version.';
+    updateSettingsCheckBtn.textContent = 'Check for Updates';
+    updateSettingsDownloadBtn.classList.add('hidden');
+    updateSettingsInstallBtn.classList.add('hidden');
+    updateSettingsProgressArea.classList.add('hidden');
   });
 
   window.electronAPI.onUpdateDownloadProgress((progress) => {
-    updateProgress.classList.remove('hidden');
-    updateProgress.textContent = `Downloading... ${Math.round(progress.percent)}%`;
+    const pct = progress.percent || 0;
+    const speed = progress.bytesPerSecond || 0;
+    setUpdateProgress(pct, speed, updateProgressFill, updateProgressPct, updateSpeed, updateProgressTrack);
+    setUpdateProgress(pct, speed, updateSettingsProgressFill, null, updateSettingsSpeed, updateSettingsProgressArea);
+    updateSettingsStatus.textContent = 'Downloading... ' + Math.round(pct) + '%';
   });
 
   window.electronAPI.onUpdateDownloaded(() => {
-    updateProgress.classList.add('hidden');
+    updateDownloaded = true;
+    updateProgressTrack.classList.add('hidden');
+    updateSpeed.classList.add('hidden');
+    updateProgressPct.classList.add('hidden');
     updateDownloadBtn.classList.add('hidden');
     updateInstallBtn.classList.remove('hidden');
     updateText.textContent = 'Update downloaded — restart to install';
+
+    updateSettingsProgressArea.classList.add('hidden');
+    updateSettingsDownloadBtn.classList.add('hidden');
+    updateSettingsInstallBtn.classList.remove('hidden');
+    updateSettingsStatus.textContent = 'Update downloaded — restart to install';
+  });
+
+  window.electronAPI.onUpdateError((msg) => {
+    updateSettingsStatus.textContent = 'Update check failed: ' + msg;
+    updateSettingsCheckBtn.textContent = 'Check for Updates';
+    updateSettingsDownloadBtn.classList.add('hidden');
+    updateSettingsInstallBtn.classList.add('hidden');
+    updateSettingsProgressArea.classList.add('hidden');
   });
 
   updateDownloadBtn.addEventListener('click', () => {
     updateDownloadBtn.disabled = true;
     updateDownloadBtn.textContent = 'Downloading...';
-    window.electronAPI.restartAndUpdate();
+    updateSettingsDownloadBtn.disabled = true;
+    updateSettingsDownloadBtn.textContent = 'Downloading...';
+    window.electronAPI.downloadUpdate();
   });
 
   updateInstallBtn.addEventListener('click', () => {
@@ -1602,6 +1673,41 @@ if (window.electronAPI) {
 
   updateCloseBtn.addEventListener('click', () => {
     updateBar.classList.add('hidden');
+  });
+
+  updateSettingsCheckBtn.addEventListener('click', () => {
+    updateSettingsCheckBtn.disabled = true;
+    updateSettingsCheckBtn.textContent = 'Checking...';
+    updateSettingsStatus.textContent = 'Checking for updates...';
+    updateSettingsDownloadBtn.classList.add('hidden');
+    updateSettingsInstallBtn.classList.add('hidden');
+    updateSettingsProgressArea.classList.add('hidden');
+    if (updateDownloaded) {
+      updateSettingsStatus.textContent = 'Update already downloaded — restart to install.';
+      updateSettingsInstallBtn.classList.remove('hidden');
+      updateSettingsCheckBtn.disabled = false;
+      updateSettingsCheckBtn.textContent = 'Check Again';
+      return;
+    }
+    window.electronAPI.checkForUpdates();
+    setTimeout(() => {
+      updateSettingsCheckBtn.disabled = false;
+      if (updateSettingsCheckBtn.textContent === 'Checking...') {
+        updateSettingsCheckBtn.textContent = 'Check for Updates';
+      }
+    }, 10000);
+  });
+
+  updateSettingsDownloadBtn.addEventListener('click', () => {
+    updateSettingsDownloadBtn.disabled = true;
+    updateSettingsDownloadBtn.textContent = 'Downloading...';
+    updateDownloadBtn.disabled = true;
+    updateDownloadBtn.textContent = 'Downloading...';
+    window.electronAPI.downloadUpdate();
+  });
+
+  updateSettingsInstallBtn.addEventListener('click', () => {
+    window.electronAPI.restartAndUpdate();
   });
 }
 

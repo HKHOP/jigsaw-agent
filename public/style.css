@@ -915,8 +915,8 @@ html, body {
 #update-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 6px 12px;
   border-bottom: 1px solid #1a3a5a;
   background: #0a1a2a;
   font-size: 12px;
@@ -929,6 +929,58 @@ html, body {
 
 #update-text {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#update-speed {
+  font-size: 11px;
+  color: #6a9ad8;
+  min-width: 70px;
+  text-align: right;
+}
+
+#update-speed.hidden {
+  display: none;
+}
+
+#update-progress-pct {
+  font-size: 11px;
+  color: #6a9ad8;
+  min-width: 35px;
+  text-align: right;
+}
+
+#update-progress-pct.hidden {
+  display: none;
+}
+
+#update-progress-track {
+  width: 80px;
+  height: 6px;
+  background: #1a2a3a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#update-progress-track.hidden {
+  display: none;
+}
+
+#update-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4a8aba;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+#update-download-btn:disabled,
+#update-install-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 #update-download-btn,
@@ -940,10 +992,11 @@ html, body {
   cursor: pointer;
   font-family: inherit;
   font-size: 12px;
+  white-space: nowrap;
 }
 
-#update-download-btn:hover,
-#update-install-btn:hover {
+#update-download-btn:hover:not(:disabled),
+#update-install-btn:hover:not(:disabled) {
   background: #0d3d6a;
   border-color: #4a8aba;
 }
@@ -961,9 +1014,41 @@ html, body {
   color: #e0e0e0;
 }
 
-#update-progress {
-  color: #666;
+#update-settings-progress-area {
+  margin-top: 8px;
+}
+
+#update-settings-progress-area.hidden {
+  display: none;
+}
+
+#update-settings-speed {
   font-size: 11px;
+  color: #6a9ad8;
+  margin-bottom: 4px;
+}
+
+#update-settings-progress-track {
+  width: 100%;
+  height: 8px;
+  background: #1a1a1a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#update-settings-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #4a8aba;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+#update-settings-check-btn:disabled,
+#update-settings-download-btn:disabled,
+#update-settings-install-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* --- Loop warning bar --- */

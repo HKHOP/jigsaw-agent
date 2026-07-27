@@ -74,10 +74,14 @@
 
       <div id="update-bar" class="hidden">
         <span id="update-text">A new version is available</span>
+        <span id="update-speed" class="hidden"></span>
+        <span id="update-progress-pct" class="hidden"></span>
+        <div id="update-progress-track" class="hidden">
+          <div id="update-progress-fill"></div>
+        </div>
         <button id="update-download-btn">Download</button>
         <button id="update-install-btn" class="hidden">Restart & Install</button>
         <button id="update-close-btn">&times;</button>
-        <span id="update-progress" class="hidden"></span>
       </div>
       <div id="loop-warning" class="hidden">
         <span id="loop-warning-text">⚠️ AI has been running for 40+ turns. It may be stuck in a loop.</span>
@@ -205,6 +209,21 @@
             <span>Nightly — latest main branch builds</span>
             <input type="radio" name="channel-select" value="nightly">
           </label>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title">Update</div>
+          <div id="update-settings-status" class="settings-desc">Click "Check for Updates" to look for new versions.</div>
+          <div id="update-settings-progress-area" class="hidden">
+            <div id="update-settings-speed"></div>
+            <div id="update-settings-progress-track">
+              <div id="update-settings-progress-fill"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="update-settings-check-btn" class="settings-btn">Check for Updates</button>
+            <button id="update-settings-download-btn" class="settings-btn hidden">Download</button>
+            <button id="update-settings-install-btn" class="settings-btn hidden">Restart & Install</button>
+          </div>
         </div>
         <div class="settings-section">
           <div class="settings-section-title">Changelog</div>
