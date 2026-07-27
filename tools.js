@@ -1,8 +1,9 @@
 const fs = require('node:fs');
+const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
-const { execSync } = require('node:child_process');
+const { execSync, exec } = require('node:child_process');
 
 const TOOL_DEFINITIONS = [
   {
@@ -642,6 +643,20 @@ function inRootPath(p, rootPath, settings) {
   return normalized === rootNorm || normalized.startsWith(rootNorm + '/');
 }
 
+function execAsync(cmd, opts) {
+  return new Promise((resolve, reject) => {
+    exec(cmd, opts, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout = error.stdout || '';
+        error.stderr = error.stderr || '';
+        reject(error);
+      } else {
+        resolve({ stdout, stderr });
+      }
+    });
+  });
+}
+
 async function executeTool(name, args, settings, rootPath) {
   const toolCfg = settings?.tools?.[name] || {};
 
@@ -656,36 +671,36 @@ async function executeTool(name, args, settings, rootPath) {
   switch (name) {
     case 'read_file': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const content = fs.readFileSync(args.path, 'utf-8');
+      const content = await fsp.readFile(args.path, 'utf-8');
       return { content, size: content.length, path: path.resolve(args.path) };
     }
 
     case 'write_file': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       const dir = path.dirname(args.path);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(args.path, args.content, 'utf-8');
+      await fsp.mkdir(dir, { recursive: true });
+      await fsp.writeFile(args.path, args.content, 'utf-8');
       return { ok: true, path: path.resolve(args.path), bytes: args.content.length };
     }
 
     case 'edit_file': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const content = fs.readFileSync(args.path, 'utf-8');
+      const content = await fsp.readFile(args.path, 'utf-8');
       const idx = content.indexOf(args.old_string);
       if (idx === -1) return { error: `old_string not found in file` };
       const newContent = content.slice(0, idx) + args.new_string + content.slice(idx + args.old_string.length);
-      fs.writeFileSync(args.path, newContent, 'utf-8');
+      await fsp.writeFile(args.path, newContent, 'utf-8');
       return { ok: true, path: path.resolve(args.path), replaced: 1 };
     }
 
     case 'list_dir': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const entries = fs.readdirSync(args.path, { withFileTypes: true });
-      const listing = entries.map(e => ({
-        name: e.name,
-        type: e.isDirectory() ? 'dir' : 'file',
-        size: e.isFile() ? fs.statSync(path.join(args.path, e.name)).size : null,
-      }));
+      const entries = await fsp.readdir(args.path, { withFileTypes: true });
+      const listing = [];
+      for (const e of entries) {
+        const size = e.isFile() ? (await fsp.stat(path.join(args.path, e.name))).size : null;
+        listing.push({ name: e.name, type: e.isDirectory() ? 'dir' : 'file', size });
+      }
       return { path: path.resolve(args.path), entries: listing, count: listing.length };
     }
 
@@ -696,17 +711,17 @@ async function executeTool(name, args, settings, rootPath) {
       const includeFilter = args.include ? new RegExp(args.include.replace(/\*/g, '.*')) : null;
       const pattern = new RegExp(args.pattern, 'gi');
 
-      function walk(dir) {
+      async function walk(dir) {
         let entries;
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        try { entries = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
         for (const e of entries) {
           if (e.name.startsWith('.') || e.name === 'node_modules') continue;
           const full = path.join(dir, e.name);
-          if (e.isDirectory()) walk(full);
+          if (e.isDirectory()) { await walk(full); continue; }
           if (e.isFile()) {
             if (includeFilter && !includeFilter.test(e.name)) continue;
             try {
-              const content = fs.readFileSync(full, 'utf-8');
+              const content = await fsp.readFile(full, 'utf-8');
               const lines = content.split('\n');
               for (let i = 0; i < lines.length; i++) {
                 if (pattern.test(lines[i])) {
@@ -717,16 +732,15 @@ async function executeTool(name, args, settings, rootPath) {
           }
         }
       }
-      walk(path.resolve(root));
+      await walk(path.resolve(root));
       return { pattern: args.pattern, results, count: results.length };
     }
 
     case 'run_command': {
       const cwd = args.workdir ? path.resolve(args.workdir) : process.cwd();
-      const maxBuffer = 1024 * 1024;
       try {
-        const output = execSync(args.command, { cwd, maxBuffer, encoding: 'utf-8', timeout: 30000 });
-        return { command: args.command, workdir: cwd, stdout: output, stderr: '', exitCode: 0 };
+        const { stdout, stderr } = await execAsync(args.command, { cwd, maxBuffer: 1048576, encoding: 'utf-8', timeout: 30000 });
+        return { command: args.command, workdir: cwd, stdout, stderr, exitCode: 0 };
       } catch (e) {
         return { command: args.command, workdir: cwd, stdout: e.stdout || '', stderr: e.stderr || e.message, exitCode: e.status || 1, error: `Command failed (exit code ${e.status || 1})` };
       }
@@ -737,22 +751,22 @@ async function executeTool(name, args, settings, rootPath) {
         return { error: 'Access denied: path outside project root' };
       }
       const dir = path.dirname(args.destination);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.renameSync(args.source, args.destination);
+      await fsp.mkdir(dir, { recursive: true });
+      await fsp.rename(args.source, args.destination);
       return { ok: true, from: path.resolve(args.source), to: path.resolve(args.destination) };
     }
 
     case 'delete_file': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const stat = fs.statSync(args.path);
+      const stat = await fsp.stat(args.path);
       const type = stat.isDirectory() ? 'directory' : 'file';
-      fs.rmSync(args.path, { recursive: true, force: true });
+      await fsp.rm(args.path, { recursive: true, force: true });
       return { ok: true, deleted: type, path: path.resolve(args.path) };
     }
 
     case 'file_stats': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const stat = fs.statSync(args.path);
+      const stat = await fsp.stat(args.path);
       return {
         path: path.resolve(args.path),
         type: stat.isDirectory() ? 'directory' : stat.isFile() ? 'file' : 'other',
@@ -766,7 +780,7 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'create_dir': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      fs.mkdirSync(args.path, { recursive: true });
+      await fsp.mkdir(args.path, { recursive: true });
       return { ok: true, path: path.resolve(args.path) };
     }
 
@@ -787,8 +801,8 @@ async function executeTool(name, args, settings, rootPath) {
       const cwd = process.cwd();
       const cmd = `git ${args.operation}${args.args ? ' ' + args.args : ''}`;
       try {
-        const output = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 30000 });
-        return { operation: args.operation, stdout: output, exitCode: 0 };
+        const { stdout, stderr } = await execAsync(cmd, { cwd, encoding: 'utf-8', timeout: 30000 });
+        return { operation: args.operation, stdout, exitCode: 0 };
       } catch (e) {
         return { operation: args.operation, stdout: e.stdout || '', stderr: e.stderr || e.message, exitCode: e.status || 1 };
       }
@@ -801,25 +815,25 @@ async function executeTool(name, args, settings, rootPath) {
       const regex = new RegExp('^' + pattern.replace(/\*\*/g, '.*').replace(/\*/g, '[^/\\\\]*').replace(/\?/g, '.') + '$', 'i');
       const matches = [];
 
-      function walk(dir) {
+      async function walk(dir) {
         let entries;
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        try { entries = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
         for (const e of entries) {
           if (e.name.startsWith('.') || e.name === 'node_modules') continue;
           const full = path.join(dir, e.name);
           const rel = path.relative(root, full);
           if (regex.test(rel)) matches.push(rel);
-          if (e.isDirectory()) walk(full);
+          if (e.isDirectory()) await walk(full);
         }
       }
-      walk(root);
+      await walk(root);
       return { pattern: args.pattern, root, matches, count: matches.length };
     }
 
     case 'watch_file': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try {
-        const stat = fs.statSync(args.path);
+        const stat = await fsp.stat(args.path);
         return {
           path: path.resolve(args.path),
           exists: true,
@@ -926,16 +940,16 @@ async function executeTool(name, args, settings, rootPath) {
       const maxResults = Math.min(args.maxResults || 50, 500);
       const results = [];
 
-      function visit(dir) {
+      async function visit(dir) {
         if (results.length >= maxResults) return;
         let entries;
-        try { entries = fs.readdirSync(dir); } catch { return; }
+        try { entries = await fsp.readdir(dir); } catch { return; }
         for (const entry of entries) {
           if (results.length >= maxResults) break;
           const full = path.join(dir, entry);
           let stat;
-          try { stat = fs.statSync(full); } catch { continue; }
-          if (stat.isDirectory()) { visit(full); continue; }
+          try { stat = await fsp.stat(full); } catch { continue; }
+          if (stat.isDirectory()) { await visit(full); continue; }
 
           const nameMatch = !args.pattern || entry.toLowerCase().includes(args.pattern.replace(/\*/g, '').toLowerCase());
           const sizeOk = (!args.minSize || stat.size >= args.minSize) && (!args.maxSize || stat.size <= args.maxSize);
@@ -945,7 +959,7 @@ async function executeTool(name, args, settings, rootPath) {
         }
       }
 
-      visit(searchPath);
+      await visit(searchPath);
       return { files: results, count: results.length, truncated: results.length >= maxResults };
     }
 
@@ -971,8 +985,8 @@ async function executeTool(name, args, settings, rootPath) {
     case 'process_info': {
       try {
         const psCmd = 'Get-Process | Select-Object Name, Id, @{N=\\"CPU\\";E={\\"{0:N1}\\" -f $_.CPU}}, @{N=\\"MemMB\\";E={\\"{0:N0}\\" -f ($_.WorkingSet / 1MB)}}, @{N=\\"HasWindow\\";E={$_.MainWindowHandle -ne 0 -and [bool]$_.MainWindowTitle}} | ConvertTo-Json -Compress';
-        const raw = execSync(`powershell -NoProfile -Command "${psCmd}"`, { encoding: 'utf8', timeout: 10000 });
-        const processes = JSON.parse(raw.trim());
+        const { stdout } = await execAsync(`powershell -NoProfile -Command "${psCmd}"`, { encoding: 'utf8', timeout: 10000 });
+        const processes = JSON.parse(stdout.trim());
         const list = Array.isArray(processes) ? processes : [processes];
         const mapped = list.map(p => ({
           name: p.Name || '',
@@ -991,11 +1005,11 @@ async function executeTool(name, args, settings, rootPath) {
     case 'clipboard': {
       try {
         if (args.action === 'read') {
-          const content = execSync('powershell -Command "Get-Clipboard"', { encoding: 'utf8', timeout: 5000 }).trim();
-          return { content };
+          const { stdout } = await execAsync('powershell -Command "Get-Clipboard"', { encoding: 'utf8', timeout: 5000 });
+          return { content: stdout.trim() };
         } else {
           const content = (args.content || '').replace(/"/g, '\\"');
-          execSync(`powershell -Command "Set-Clipboard -Value \\"${content}\\""`, { timeout: 5000 });
+          await execAsync(`powershell -Command "Set-Clipboard -Value \\"${content}\\""`, { timeout: 5000 });
           return { success: true };
         }
       } catch (e) {
@@ -1009,7 +1023,7 @@ async function executeTool(name, args, settings, rootPath) {
         const resp = await fetch(args.url);
         if (!resp.ok) return { error: `Download failed: ${resp.status} ${resp.statusText}` };
         const buf = Buffer.from(await resp.arrayBuffer());
-        fs.writeFileSync(args.output, buf);
+        await fsp.writeFile(args.output, buf);
         return { success: true, path: args.output, size: buf.length };
       } catch (e) {
         return { error: e.message };
@@ -1024,7 +1038,7 @@ async function executeTool(name, args, settings, rootPath) {
         if (args.text) {
           hash.update(args.text, 'utf8');
         } else if (args.path) {
-          hash.update(fs.readFileSync(args.path));
+          hash.update(await fsp.readFile(args.path));
         } else {
           return { error: 'Provide either path or text' };
         }
@@ -1087,17 +1101,17 @@ async function executeTool(name, args, settings, rootPath) {
         const iv = crypto.randomBytes(16);
 
         if (action === 'encrypt') {
-          const data = fs.readFileSync(input);
+          const data = await fsp.readFile(input);
           const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
           const encrypted = Buffer.concat([iv, cipher.update(data), cipher.final()]);
-          fs.writeFileSync(output, encrypted);
+          await fsp.writeFile(output, encrypted);
           return { success: true, action: 'encrypt', input, output, size: encrypted.length };
         } else {
-          const data = fs.readFileSync(input);
+          const data = await fsp.readFile(input);
           const ivRead = data.subarray(0, 16);
           const decipher = crypto.createDecipheriv('aes-256-cbc', key, ivRead);
           const decrypted = Buffer.concat([decipher.update(data.subarray(16)), decipher.final()]);
-          fs.writeFileSync(output, decrypted);
+          await fsp.writeFile(output, decrypted);
           return { success: true, action: 'decrypt', input, output, size: decrypted.length };
         }
       } catch (e) {
@@ -1107,21 +1121,23 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'see_documentation': {
       const docsDir = path.join(__dirname, 'docs', 'minecraft');
-      if (!fs.existsSync(docsDir)) {
+      let docsExist;
+      try { await fsp.access(docsDir); docsExist = true; } catch { docsExist = false; }
+      if (!docsExist) {
         return { query: args.query, results: [], note: 'No documentation available. Run npm run fetch-docs to download docs.' };
       }
       const query = (args.query || '').toLowerCase();
       const keywords = query.split(/\s+/).filter(w => w.length > 2);
       const results = [];
-      function walk(dir) {
+      async function walk(dir) {
         let entries;
-        try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        try { entries = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
         for (const entry of entries) {
           const full = path.join(dir, entry.name);
-          if (entry.isDirectory()) { walk(full); continue; }
+          if (entry.isDirectory()) { await walk(full); continue; }
           if (!entry.name.endsWith('.txt')) continue;
           try {
-            const header = fs.readFileSync(full, 'utf-8').split('\n').slice(0, 6).join('\n');
+            const header = (await fsp.readFile(full, 'utf-8')).split('\n').slice(0, 6).join('\n');
             const urlMatch = header.match(/^Source: (.+)$/m);
             const titleMatch = header.match(/^Title: (.+)$/m);
             const categoryMatch = header.match(/^Category: (.+)$/m);
@@ -1139,7 +1155,7 @@ async function executeTool(name, args, settings, rootPath) {
           } catch {}
         }
       }
-      if (fs.existsSync(docsDir)) walk(docsDir);
+      await walk(docsDir);
       results.sort((a, b) => b.score - a.score);
       return {
         query: args.query,
@@ -1319,12 +1335,12 @@ async function executeTool(name, args, settings, rootPath) {
     case 'list_apps': {
       const userStartMenu = path.join(os.homedir(), 'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu');
       const commonStartMenu = 'C:\\ProgramData\\Microsoft\\Windows\\Start Menu';
-      const dirs = [userStartMenu, commonStartMenu].filter(d => fs.existsSync(d));
+      const dirs = [userStartMenu, commonStartMenu].filter(d => { try { fs.accessSync(d); return true; } catch { return false; } });
       if (dirs.length === 0) return { error: 'Start Menu directories not found' };
       try {
         const script = `$shell = New-Object -ComObject WScript.Shell; $results = @(); @(${dirs.map(d => `'${d.replace(/'/g, "''")}'`).join(', ')}) | ForEach-Object { Get-ChildItem $_ -Recurse -Filter '*.lnk' -ErrorAction SilentlyContinue | ForEach-Object { try { $sc = $shell.CreateShortcut($_.FullName); if ($sc.TargetPath -and $sc.TargetPath -ne '') { $results += [PSCustomObject]@{ name = $_.BaseName; target = $sc.TargetPath; arguments = $sc.Arguments } } } catch {} } }; ConvertTo-Json -InputObject $results`;
-        const out = execSync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, { timeout: 30000, encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 });
-        const apps = JSON.parse(out.trim() || '[]');
+        const { stdout } = await execAsync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, { timeout: 30000, encoding: 'utf8', maxBuffer: 5 * 1024 * 1024 });
+        const apps = JSON.parse(stdout.trim() || '[]');
         return { apps: Array.isArray(apps) ? apps : [apps], count: Array.isArray(apps) ? apps.length : 1 };
       } catch (e) {
         return { error: 'Failed to scan Start Menu: ' + e.message };
@@ -1335,7 +1351,7 @@ async function executeTool(name, args, settings, rootPath) {
       const appPath = args.path;
       if (!appPath || typeof appPath !== 'string') return { error: 'Path is required' };
       if (!inRootPath(appPath, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      if (!fs.existsSync(appPath)) return { error: `File not found: ${appPath}` };
+      try { await fsp.access(appPath); } catch { return { error: `File not found: ${appPath}` }; }
       try {
         const { spawn } = require('node:child_process');
         spawn(appPath, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref();

@@ -1,4 +1,5 @@
 const initSqlJs = require('sql.js');
+const fsp = require('node:fs/promises');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -11,17 +12,19 @@ async function getSql() {
   return SQL;
 }
 
-function openDb(filePath) {
-  if (!fs.existsSync(filePath)) {
+async function openDb(filePath) {
+  try {
+    await fsp.access(filePath);
+    const buf = await fsp.readFile(filePath);
+    return { buffer: buf };
+  } catch {
     return { error: `File not found: ${filePath}` };
   }
-  const buf = fs.readFileSync(filePath);
-  return { buffer: buf };
 }
 
 async function listTables(filePath) {
   const sql = await getSql();
-  const { buffer, error } = openDb(filePath);
+  const { buffer, error } = await openDb(filePath);
   if (error) return { error };
   const db = new sql.Database(buffer);
   try {
@@ -35,7 +38,7 @@ async function listTables(filePath) {
 
 async function getSchema(filePath, table) {
   const sql = await getSql();
-  const { buffer, error } = openDb(filePath);
+  const { buffer, error } = await openDb(filePath);
   if (error) return { error };
   const db = new sql.Database(buffer);
   try {
@@ -57,7 +60,7 @@ async function getSchema(filePath, table) {
 
 async function query(filePath, sqlText, params) {
   const sql = await getSql();
-  const { buffer, error } = openDb(filePath);
+  const { buffer, error } = await openDb(filePath);
   if (error) return { error };
   const db = new sql.Database(buffer);
   try {
@@ -83,7 +86,7 @@ async function query(filePath, sqlText, params) {
 
 async function execute(filePath, sqlText, params) {
   const sql = await getSql();
-  const { buffer, error } = openDb(filePath);
+  const { buffer, error } = await openDb(filePath);
   if (error) return { error };
   const db = new sql.Database(buffer);
   try {
@@ -94,7 +97,7 @@ async function execute(filePath, sqlText, params) {
     db.run(sqlText, params);
     const affected = db.getRowsModified();
     const buf = db.export();
-    fs.writeFileSync(filePath, buf);
+    await fsp.writeFile(filePath, buf);
     return { path: filePath, sql: sqlText, affectedRows: affected };
   } finally {
     db.close();
@@ -103,14 +106,14 @@ async function execute(filePath, sqlText, params) {
 
 async function backup(filePath, output) {
   const sql = await getSql();
-  const { buffer, error } = openDb(filePath);
+  const { buffer, error } = await openDb(filePath);
   if (error) return { error };
   const db = new sql.Database(buffer);
   try {
     const buf = db.export();
     const dir = path.dirname(output);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(output, buf);
+    await fsp.mkdir(dir, { recursive: true });
+    await fsp.writeFile(output, buf);
     return { source: filePath, destination: output, size: buf.length };
   } finally {
     db.close();

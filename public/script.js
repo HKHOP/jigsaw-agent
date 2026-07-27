@@ -48,6 +48,77 @@ let messageQueue = [];
 let currentAbortController = null;
 let lastEscPress = 0;
 let userScrolledUp = false;
+let isStreaming = false;
+
+// Virtual scroll for large conversations
+const VS = { THRESHOLD: 100, WINDOW: 150, BUFFER: 40, EST_H: 90,
+  enabled: false, startIdx: 0, endIdx: 0, heights: [], topPad: 0, allMsgs: [],
+  topSpacer: null, bottomSpacer: null };
+
+function ensureVSSpacers() {
+  if (!VS.topSpacer || !VS.topSpacer.parentNode) {
+    VS.topSpacer = document.createElement('div');
+    VS.topSpacer.id = 'vs-top';
+    messagesEl.insertBefore(VS.topSpacer, messagesEl.firstChild);
+  }
+  if (!VS.bottomSpacer || !VS.bottomSpacer.parentNode) {
+    VS.bottomSpacer = document.createElement('div');
+    VS.bottomSpacer.id = 'vs-bottom';
+    messagesEl.appendChild(VS.bottomSpacer);
+  }
+}
+
+function calcVSWindow() {
+  const total = VS.allMsgs.length;
+  if (total <= VS.WINDOW) { VS.enabled = false; VS.startIdx = 0; VS.endIdx = total; return; }
+  let scrollTop = Math.max(0, chat.scrollTop - VS.topPad);
+  let acc = 0; let first = 0;
+  for (let i = VS.startIdx; i < total; i++) {
+    const h = VS.heights[i] || VS.EST_H;
+    if (acc + h > scrollTop) { first = i; break; }
+    acc += h;
+  }
+  const bottom = scrollTop + chat.clientHeight;
+  acc = 0; let last = total - 1;
+  for (let i = VS.startIdx; i < total; i++) {
+    const h = VS.heights[i] || VS.EST_H;
+    acc += h;
+    if (acc > bottom) { last = i; break; }
+  }
+  VS.startIdx = Math.max(0, first - VS.BUFFER);
+  VS.endIdx = Math.min(total, last + VS.BUFFER);
+  if (VS.endIdx - VS.startIdx > VS.WINDOW) {
+    const mid = (first + last) / 2;
+    VS.startIdx = Math.max(0, Math.round(mid - VS.WINDOW / 2));
+    VS.endIdx = Math.min(total, VS.startIdx + VS.WINDOW);
+  }
+}
+
+function updateVSSpacers() {
+  let top = 0;
+  for (let i = 0; i < VS.startIdx; i++) top += VS.heights[i] || VS.EST_H;
+  VS.topPad = top;
+  if (VS.topSpacer) VS.topSpacer.style.height = top + 'px';
+  if (VS.bottomSpacer) {
+    let bot = 0;
+    for (let i = VS.endIdx; i < VS.allMsgs.length; i++) bot += VS.heights[i] || VS.EST_H;
+    VS.bottomSpacer.style.height = (isStreaming ? 0 : bot) + 'px';
+  }
+}
+
+function measureVSHeights(baseIdx) {
+  requestAnimationFrame(() => {
+    const children = messagesEl.children;
+    let j = 0;
+    for (let i = 0; i < children.length; i++) {
+      const el = children[i];
+      if (el.id === 'vs-top' || el.id === 'vs-bottom') continue;
+      if (el.classList.contains('load-older')) continue;
+      VS.heights[baseIdx + j] = el.offsetHeight || VS.EST_H;
+      j++;
+    }
+  });
+}
 
 const EMOJI_MAP = {
   ':smile:': '😄', ':laughing:': '😆', ':joy:': '😂', ':wink:': '😉',
@@ -268,15 +339,50 @@ function showWelcome() {
 }
 
 function renderMessages(messages) {
+  VS.allMsgs = messages;
+  const total = messages ? messages.length : 0;
   messagesEl.innerHTML = '';
-  if (!messages || messages.length === 0) {
+  ensureVSSpacers();
+
+  if (!messages || total === 0) {
     messagesEl.innerHTML = '<div class="empty-state">No messages yet</div>';
+    VS.enabled = false;
     return;
   }
-  for (let i = 0; i < messages.length; i++) {
-    const m = messages[i];
+
+  VS.enabled = total > VS.THRESHOLD;
+
+  let slice, baseIdx;
+  if (VS.enabled) {
+    if (isStreaming || !userScrolledUp) {
+      VS.startIdx = Math.max(0, total - VS.WINDOW);
+    }
+    VS.startIdx = Math.max(0, Math.min(VS.startIdx, total - VS.WINDOW));
+    VS.endIdx = Math.min(total, VS.startIdx + VS.WINDOW);
+    slice = messages.slice(VS.startIdx, VS.endIdx);
+    baseIdx = VS.startIdx;
+
+    if (VS.startIdx > 0) {
+      const loadBtn = document.createElement('div');
+      loadBtn.className = 'load-older';
+      loadBtn.textContent = '↑ Show ' + VS.startIdx + ' older messages';
+      loadBtn.addEventListener('click', () => loadOlderMessages());
+      messagesEl.appendChild(loadBtn);
+    }
+  } else {
+    VS.startIdx = 0;
+    VS.endIdx = total;
+    slice = messages;
+    baseIdx = 0;
+    if (VS.topSpacer) VS.topSpacer.style.height = '0px';
+    if (VS.bottomSpacer) VS.bottomSpacer.style.height = '0px';
+  }
+
+  for (let j = 0; j < slice.length; j++) {
+    const m = slice[j];
+    const globalIdx = baseIdx + j;
     const wrapper = document.createElement('div');
-    wrapper.dataset.index = i;
+    wrapper.dataset.index = globalIdx;
 
     if (m.role === 'assistant' && m.thinking) {
       const thinkEl = document.createElement('div');
@@ -326,15 +432,31 @@ function renderMessages(messages) {
     }
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      contextMessageIndex = i;
+      contextMessageIndex = globalIdx;
       showContextMenu();
     });
     wrapper.appendChild(el);
     messagesEl.appendChild(wrapper);
   }
+
+  measureVSHeights(baseIdx);
+
+  if (VS.enabled) {
+    updateVSSpacers();
+  }
+
   applySyntaxHighlighting();
   addCopyButtons();
-  scrollToBottom();
+  if (!userScrolledUp) {
+    scrollToBottom();
+  }
+}
+
+function loadOlderMessages() {
+  const oldTopPad = VS.topPad;
+  VS.startIdx = Math.max(0, VS.startIdx - VS.WINDOW);
+  renderMessages(VS.allMsgs);
+  chat.scrollTop = chat.scrollTop + (VS.topPad - oldTopPad);
 }
 
 function showContextMenu() {
@@ -1379,6 +1501,7 @@ async function send() {
   }
 
   try {
+    isStreaming = true;
     const ac = new AbortController();
     currentAbortController = ac;
     const res = await fetch(`/api/threads/${currentThreadId}/stream`, { method: 'POST', signal: ac.signal });
@@ -1493,7 +1616,9 @@ async function send() {
         } catch {}
       }
     }
+    isStreaming = false;
   } catch (err) {
+    isStreaming = false;
     currentAbortController = null;
     if (err.name === 'AbortError') {
       if (accumulatedContent) {
@@ -1550,8 +1675,24 @@ chat.addEventListener('scroll', () => {
   if (isScrolledToBottom()) {
     scrollBottomBtn.classList.add('hidden');
     userScrolledUp = false;
+    if (VS.enabled && !isStreaming && VS.endIdx < VS.allMsgs.length) {
+      VS.startIdx = Math.max(0, VS.allMsgs.length - VS.WINDOW);
+      VS.endIdx = VS.allMsgs.length;
+      renderMessages(VS.allMsgs);
+    }
   } else {
     userScrolledUp = true;
+  }
+
+  if (VS.enabled && !isStreaming) {
+    const nearTop = chat.scrollTop - VS.topPad < 200;
+    if (nearTop && VS.startIdx > 0) {
+      const oldPad = VS.topPad;
+      VS.startIdx = Math.max(0, VS.startIdx - Math.round(VS.WINDOW * 0.3));
+      VS.endIdx = Math.min(VS.allMsgs.length, VS.startIdx + VS.WINDOW);
+      renderMessages(VS.allMsgs);
+      chat.scrollTop += VS.topPad - oldPad;
+    }
   }
 });
 

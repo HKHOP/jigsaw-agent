@@ -355,7 +355,38 @@ html, body {
 #messages {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+}
+
+#messages > :not(#vs-top):not(#vs-bottom) {
+  margin-top: 12px;
+}
+#messages > :first-child {
+  margin-top: 0;
+}
+
+#vs-top, #vs-bottom {
+  overflow: hidden;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.load-older {
+  text-align: center;
+  padding: 12px;
+  color: #888;
+  cursor: pointer;
+  font-size: 13px;
+  border: 1px dashed #333;
+  border-radius: 6px;
+  background: #0d0d0d;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.load-older:hover {
+  background: #1a1a1a;
+  color: #ccc;
+  border-color: #555;
 }
 
 .message {

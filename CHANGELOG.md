@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.1 — 2026-07-27
+
+### Added
+- Virtual scroll for chat — large conversations now only render messages near the viewport (window size: 150), automatically loading older batches when scrolling up and showing latest when at the bottom
+- "Show N older messages" button appears at the top when older messages are hidden
+
+### Changed
+- All file system operations in tools.js converted from sync (fs, execSync) to async (fsp, execAsync) to prevent event loop blocking on large files or slow I/O
+- Database operations in db-manager.js converted from sync to async (fsp.readFile/fsp.writeFile) for non-blocking reads and writes
+- Chat message spacing changed from CSS `gap` to per-item `margin-top` for compatibility with virtual scroll elements
+
+### Fixed
+- `list_apps` and `open_app` now use try-catch instead of sync access checks for path existence
+
 ## 1.1.0 — 2026-07-27
 
 ### Added
