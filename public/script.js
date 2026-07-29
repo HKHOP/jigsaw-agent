@@ -553,6 +553,7 @@ const settingsCatBtns = document.querySelectorAll('.settings-cat-btn');
 const settingsPanels = document.querySelectorAll('.settings-panel');
 const mainEl = document.getElementById('main');
 const channelRadios = document.querySelectorAll('input[name="channel-select"]');
+const providerRadios = document.querySelectorAll('input[name="provider-select"]');
 const changelogContent = document.getElementById('changelog-content');
 const queueBar = document.getElementById('queue-bar');
 const queueCount = document.getElementById('queue-count');
@@ -687,6 +688,7 @@ async function openSettings() {
   settingsGeminiKey.value = settingsCache.geminiKey || '';
   settingsGeminiModel.value = settingsCache.geminiModel || '';
   channelRadios.forEach(r => r.checked = r.value === (settingsCache.releaseChannel || 'stable'));
+  providerRadios.forEach(r => r.checked = r.value === (settingsCache.defaultProvider || 'openrouter'));
   renderToolSettings(settingsCache.tools || {});
   switchSettingsCat('mode');
   mainEl.classList.add('hidden');
@@ -722,7 +724,7 @@ async function pollBrowserStatus() {
   try {
     const status = await api('GET', '/api/browser-status');
     closeBrowserBtn.classList.toggle('hidden', !status.open);
-  } catch {}
+  } catch (e) { console.error('Browser status poll failed:', e.message); }
 }
 setInterval(pollBrowserStatus, 2000);
 
@@ -751,6 +753,8 @@ settingsSave.addEventListener('click', async () => {
   modeRadios.forEach(r => { if (r.checked) selected = r.value; });
   let channel;
   channelRadios.forEach(r => { if (r.checked) channel = r.value; });
+  let selectedProvider;
+  providerRadios.forEach(r => { if (r.checked) selectedProvider = r.value; });
   await api('PUT', '/api/settings', {
     yoloMode: selected === 'yolo',
     autoApprove: selected === 'auto-approve',
@@ -761,6 +765,7 @@ settingsSave.addEventListener('click', async () => {
     geminiKey: settingsGeminiKey.value,
     geminiModel: settingsGeminiModel.value,
     releaseChannel: channel || 'stable',
+    defaultProvider: selectedProvider || 'openrouter',
     tools,
   });
   closeSettings();
@@ -1111,7 +1116,6 @@ rootPathInput.addEventListener('keydown', async (e) => {
 const COMMANDS = [
   { name: '/export', desc: 'Export thread to Markdown or JSON' },
   { name: '/clear', desc: 'Clear all messages in this thread' },
-  { name: '/usefallback', desc: 'Toggle Gemini as primary provider for this thread' },
   { name: '/compact', desc: 'Compact conversation to save context space' },
   { name: '/delete', desc: 'Delete this entire thread' },
 ];
@@ -1317,19 +1321,12 @@ async function handleCommand(cmd, rawText) {
     });
     return;
   }
-  if (cmd === 'usefallback') {
-    const thread = await api('GET', `/api/threads/${currentThreadId}`);
-    const newVal = !thread.useGemini;
-    await api('POST', `/api/threads/${currentThreadId}/use-gemini`, { useGemini: newVal });
-    addSystemMessage(`Switched to ${newVal ? 'Gemini-first' : 'OpenRouter-first'} mode for this thread.`);
-    return;
-  }
   if (cmd === 'compact') {
     compactBar.classList.remove('hidden');
     try {
       const result = await api('POST', `/api/threads/${currentThreadId}/compact`);
       await switchThread(currentThreadId);
-      addSystemMessage(`Compacted conversation (${result.summaryTokens} summary tokens, ${result.totalMessages} messages remaining).`);
+      addSystemMessage(`Compacted conversation (${result.summaryTokens ?? 0} summary tokens, ${result.totalMessages ?? 0} messages remaining).`);
     } catch (err) {
       addSystemMessage('Compaction failed: ' + err.message);
     }
@@ -1349,7 +1346,7 @@ async function handleCommand(cmd, rawText) {
     });
     return;
   }
-  addSystemMessage(`Unknown command: /${cmd}. Available: /export, /clear, /usefallback, /compact, /delete`);
+  addSystemMessage(`Unknown command: /${cmd}. Available: /export, /clear, /compact, /delete`);
 }
 
 function addSystemMessage(text) {
@@ -1538,7 +1535,7 @@ async function send() {
           if (parsed.compacted) {
             compactBar.classList.remove('compacting');
             compactBar.classList.add('compacted');
-            compactText.textContent = `Compacted! (~${parsed.summaryTokens} tokens summary, ${parsed.totalMessages} messages)`;
+            compactText.textContent = `Compacted! (~${parsed.summaryTokens ?? 0} tokens summary, ${parsed.totalMessages ?? 0} messages)`;
             setTimeout(() => compactBar.classList.add('hidden'), 3000);
             continue;
           }
@@ -1613,7 +1610,7 @@ async function send() {
             accumulatedContent += parsed.content;
             updateAssistantContent();
           }
-        } catch {}
+        } catch (e) { console.error('SSE stream parse error:', e.message); }
       }
     }
     isStreaming = false;
@@ -1851,6 +1848,95 @@ if (window.electronAPI) {
     window.electronAPI.restartAndUpdate();
   });
 }
+
+/* ---- Notifications ---- */
+
+const NOTIF_MAX_QUEUE = 20;
+const notifContainer = document.getElementById('notifications');
+let notifQueue = [];
+let notifShowing = false;
+
+function showNotification(message, type) {
+  type = type || 'error';
+  if (notifQueue.length >= NOTIF_MAX_QUEUE) return;
+  notifQueue.push({ message, type });
+  if (!notifShowing) processNotifQueue();
+}
+
+function processNotifQueue() {
+  if (notifQueue.length === 0) { notifShowing = false; return; }
+  notifShowing = true;
+  const { message, type } = notifQueue.shift();
+
+  const el = document.createElement('div');
+  el.className = 'notification ' + type;
+  el.textContent = message;
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'notification-copy';
+  copyBtn.textContent = '📋';
+  copyBtn.title = 'Copy text';
+  copyBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(message).catch(() => {});
+    copyBtn.textContent = '✓';
+    setTimeout(() => { copyBtn.textContent = '📋'; }, 1500);
+  });
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'notification-close';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dismissNotif(el);
+  });
+
+  el.appendChild(copyBtn);
+  el.appendChild(closeBtn);
+  el.addEventListener('click', () => dismissNotif(el));
+  notifContainer.appendChild(el);
+
+  setTimeout(() => dismissNotif(el), 8000);
+}
+
+function dismissNotif(el) {
+  if (el.classList.contains('notif-out')) return;
+  el.classList.add('notif-out');
+  el.addEventListener('animationend', () => {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    processNotifQueue();
+  });
+}
+
+const origConsoleError = console.error;
+console.error = function() {
+  const msg = Array.from(arguments).map(a => typeof a === 'object' ? (a.message || JSON.stringify(a)) : String(a)).join(' ');
+  origConsoleError.apply(console, arguments);
+  if (msg.length > 500) return;
+  if (msg.includes('ResizeObserver') || msg.includes('passive')) return;
+  showNotification(msg, 'error');
+};
+
+const origConsoleWarn = console.warn;
+console.warn = function() {
+  const msg = Array.from(arguments).map(a => typeof a === 'object' ? (a.message || JSON.stringify(a)) : String(a)).join(' ');
+  origConsoleWarn.apply(console, arguments);
+  if (msg.includes('ResizeObserver') || msg.includes('passive')) return;
+  if (msg.length > 500) return;
+  showNotification(msg, 'warn');
+};
+
+/* Connect to server event stream for notifications */
+(function connectServerEvents() {
+  const es = new EventSource('/api/events');
+  es.addEventListener('notify', (e) => {
+    try {
+      const { message, type } = JSON.parse(e.data);
+      showNotification(message, type || 'error');
+    } catch {}
+  });
+  es.addEventListener('error', () => {});
+}());
 
 (async () => {
   await loadThreads();

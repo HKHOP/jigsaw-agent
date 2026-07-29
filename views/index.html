@@ -8,11 +8,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 </head>
 <body>
+  <div id="notifications"></div>
   <div id="app">
     <aside id="sidebar">
       <div id="sidebar-header">
         <span>Jigsaw Agent</span>
-        <button id="new-thread-btn">+</button>
+        <button id="new-thread-btn" aria-label="New thread" title="New thread">+</button>
       </div>
       <div id="model-type-selector">
         <select id="model-type-select">
@@ -81,7 +82,7 @@
         </div>
         <button id="update-download-btn">Download</button>
         <button id="update-install-btn" class="hidden">Restart & Install</button>
-        <button id="update-close-btn">&times;</button>
+        <button id="update-close-btn" aria-label="Close update notification">&times;</button>
       </div>
       <div id="loop-warning" class="hidden">
         <span id="loop-warning-text">⚠️ AI has been running for 40+ turns. It may be stuck in a loop.</span>
@@ -190,6 +191,18 @@
             <label class="settings-row">
               <span>Gemini Model</span>
               <input type="text" class="settings-text-input" id="settings-gemini-model" spellcheck="false">
+            </label>
+          </div>
+          <div class="settings-section" style="margin-top:16px;padding-top:16px;border-top:1px solid #222">
+            <div class="settings-section-title">Default AI Provider</div>
+            <div class="settings-desc">Primary AI provider. The other will be used as fallback if the primary fails.</div>
+            <label class="settings-row">
+              <span>OpenRouter</span>
+              <input type="radio" name="provider-select" value="openrouter">
+            </label>
+            <label class="settings-row">
+              <span>Gemini</span>
+              <input type="radio" name="provider-select" value="gemini">
             </label>
           </div>
         </div>

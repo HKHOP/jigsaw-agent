@@ -286,11 +286,11 @@ async function* streamOpenRouter(messages, modelType) {
           continue;
         }
 
-        if (finishReason === 'tool_calls') {
+          if (finishReason === 'tool_calls') {
           for (const ptc of Object.values(pendingToolCalls)) {
             if (ptc.name) {
               let args = {};
-              try { args = JSON.parse(ptc.arguments); } catch {}
+              try { args = JSON.parse(ptc.arguments); } catch (e) { console.error('Failed to parse tool_call args:', e.message); }
               yield { type: 'tool_call', name: ptc.name, id: ptc.id || '', arguments: args };
             }
           }
@@ -312,7 +312,7 @@ async function* streamOpenRouter(messages, modelType) {
             return;
           }
         }
-      } catch {}
+      } catch (e) { console.error('OpenRouter SSE parse error:', e.message); }
     }
   }
 }
@@ -384,15 +384,15 @@ async function* streamGemini(messages, modelType) {
           yield { type: 'tool_call', name: 'request_turn', id: '' };
           return;
         }
-      } catch {}
+      } catch (e) { console.error('Gemini SSE parse error:', e.message); }
     }
   }
 }
 
-async function generateReply(messages, modelType, useGemini) {
+async function generateReply(messages, modelType, defaultProvider) {
   let err;
-  const first = useGemini ? callGemini : callOpenRouter;
-  const second = useGemini ? callOpenRouter : callGemini;
+  const first = defaultProvider === 'gemini' ? callGemini : callOpenRouter;
+  const second = defaultProvider === 'gemini' ? callOpenRouter : callGemini;
   try {
     return await first(messages, modelType);
   } catch (e) {
@@ -503,10 +503,10 @@ async function callGemini(messages, modelType) {
   return { content: extracted.content, thinking: extracted.thinking };
 }
 
-async function* streamReply(messages, modelType, useGemini) {
+async function* streamReply(messages, modelType, defaultProvider) {
   let err;
-  const first = useGemini ? streamGemini : streamOpenRouter;
-  const second = useGemini ? streamOpenRouter : streamGemini;
+  const first = defaultProvider === 'gemini' ? streamGemini : streamOpenRouter;
+  const second = defaultProvider === 'gemini' ? streamOpenRouter : streamGemini;
   try {
     for await (const chunk of first(messages, modelType)) {
       yield chunk;
@@ -551,43 +551,78 @@ async function compactMessages(messages, modelType) {
   const summaryTarget = messages.slice(0, Math.max(0, messages.length - 15));
   const recent = messages.slice(-15);
 
-  const compactContent = summaryTarget.map(m => {
+  if (summaryTarget.length === 0) {
+    return { summary: '', summaryTokens: 0, recentCount: recent.length };
+  }
+
+  let compactContent = summaryTarget.map(m => {
     const role = m.role === 'assistant' ? 'assistant' : m.role === 'user' ? 'user' : 'tool';
     const label = m.tool_name ? `[Tool: ${m.tool_name}]` : `[${role}]`;
     return `${label}: ${m.content || ''}`;
   }).join('\n\n');
 
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new Error('OPENROUTER_API_KEY not set');
-
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${key}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o',
-      messages: [
-        { role: 'system', content: COMPACTION_PROMPT },
-        { role: 'user', content: compactContent },
-      ],
-      stream: false,
-      max_tokens: 4000,
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Compaction failed: ${res.status}: ${text}`);
+  const MAX_INPUT = 100000;
+  if (compactContent.length > MAX_INPUT) {
+    const half = Math.floor(MAX_INPUT / 2);
+    compactContent = compactContent.slice(0, half) +
+      '\n\n...[MIDDLE TRUNCATED]...\n\n' +
+      compactContent.slice(-half);
   }
 
-  const data = await res.json();
-  const summary = data.choices[0].message.content || '';
+  let err;
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o',
+          messages: [
+            { role: 'system', content: COMPACTION_PROMPT },
+            { role: 'user', content: compactContent },
+          ],
+          stream: false,
+          max_tokens: 4000,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const summary = data.choices?.[0]?.message?.content || '';
+        return { summary, summaryTokens: Math.ceil(summary.length / 4), recentCount: recent.length };
+      }
+      err = new Error(`OpenRouter ${res.status}`);
+    } catch (e) { err = e; }
+  } else {
+    err = new Error('OpenRouter key not configured');
+  }
+
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: COMPACTION_PROMPT + '\n\n---\n\n' + compactContent }] }],
+          generationConfig: { maxOutputTokens: 4000 },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        return { summary, summaryTokens: Math.ceil(summary.length / 4), recentCount: recent.length };
+      }
+      err = new Error(`Gemini ${res.status}`);
+    } catch (e) { err = e; }
+  }
 
   return {
-    summary,
-    summaryTokens: Math.ceil(summary.length / 4),
+    summary: `[Compaction unavailable: ${err.message}. ${summaryTarget.length} messages remain with ~${estimateMessagesTokens(messages)} estimated tokens.]`,
+    summaryTokens: 0,
     recentCount: recent.length,
   };
 }

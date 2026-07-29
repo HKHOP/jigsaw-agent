@@ -45,7 +45,7 @@ function migrateData() {
       try {
         fs.copyFileSync(settingsSrc, settingsDest);
         migrated = true;
-      } catch {}
+      } catch (e) { console.error('Failed to migrate settings.json:', e.message); }
     }
   }
 
@@ -55,7 +55,7 @@ function migrateData() {
       try {
         fs.copyFileSync(chatsSrc, chatsDest);
         migrated = true;
-      } catch {}
+      } catch (e) { console.error('Failed to migrate chats.json:', e.message); }
     }
   }
 

@@ -2,16 +2,18 @@
 const express = require('express');
 const path = require('node:path');
 const fs = require('node:fs');
-const { spawn, execSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { Worker } = require('node:worker_threads');
 const WORKER_PATH = path.join(__dirname, 'worker.js');
 const os = require('node:os');
 const { generateReply, streamReply, compactMessages, estimateMessagesTokens } = require('./ai');
 const { executeTool, getToolDisplayName } = require('./tools');
+const bm = require('./browser-manager');
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 
+const WORKER_TIMEOUT = 30000;
 const POOL_SIZE = Math.max(2, os.cpus().length);
 const workers = [];
 let serverHandle = null;
@@ -28,7 +30,14 @@ function initWorkers() {
         cb(msg.result);
       }
     });
-    w.on('error', (err) => console.error('Worker error:', err));
+    w.on('error', (err) => {
+      console.error('Worker error:', err);
+      notifyClients('Worker error: ' + (err.message || err), 'error');
+      for (const [id, cb] of Object.entries(pending)) {
+        delete pending[id];
+        cb({ error: 'Worker crashed' });
+      }
+    });
     workers.push(w);
   }
 }
@@ -41,9 +50,18 @@ function shutdownWorkers() {
 }
 
 function workerTask(type, payload) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const id = ++taskId;
-    pending[id] = resolve;
+    const timer = setTimeout(() => {
+      if (pending[id]) {
+        delete pending[id];
+        reject(new Error(`Worker task timed out: ${type}`));
+      }
+    }, WORKER_TIMEOUT);
+    pending[id] = (result) => {
+      clearTimeout(timer);
+      resolve(result);
+    };
     const worker = workers[id % workers.length];
     worker.postMessage({ id, type, payload });
   });
@@ -66,14 +84,15 @@ app.post('/api/threads', async (req, res) => {
   try {
     const thread = await workerTask('create', { name: req.body.name, modelType: req.body.modelType || 'normal' });
     res.json(thread);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.get('/api/threads/:id', async (req, res) => {
   const thread = await workerTask('get', { threadId: req.params.id });
-  if (!thread) { res.status(404).send('Not Found'); return; }
+  if (!thread) { res.status(404).json({ error: 'Not found' }); return; }
   res.json(thread);
 });
 
@@ -84,39 +103,49 @@ app.delete('/api/threads/:id', async (req, res) => {
 
 app.post('/api/threads/:id/messages', async (req, res) => {
   try {
+    if (!req.body.role || !req.body.content) {
+      res.status(400).json({ error: 'role and content are required' });
+      return;
+    }
     const msg = await workerTask('append', {
       threadId: req.params.id,
       role: req.body.role,
       content: req.body.content,
     });
-    if (!msg) { res.status(404).send('Not Found'); return; }
+    if (!msg) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(msg);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/messages:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.post('/api/threads/:id/rename', async (req, res) => {
   try {
+    if (!req.body.name) {
+      res.status(400).json({ error: 'name is required' });
+      return;
+    }
     const result = await workerTask('rename', {
       threadId: req.params.id,
       name: req.body.name,
     });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/rename:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.post('/api/threads/:id/chat', async (req, res) => {
   const thread = await workerTask('get', { threadId: req.params.id });
-  if (!thread) { res.status(404).send('Not Found'); return; }
+  if (!thread) { res.status(404).json({ error: 'Not found' }); return; }
   const modelType = thread.modelType || 'normal';
-  const useGemini = !!thread.useGemini;
+  const settings = readSettings();
   let result;
   try {
-    result = await generateReply(thread.messages, modelType, useGemini);
+    result = await generateReply(thread.messages, modelType, settings.defaultProvider);
   } catch (err) {
     result = { content: 'Error: ' + err.message, thinking: '' };
   }
@@ -131,7 +160,7 @@ app.post('/api/threads/:id/chat', async (req, res) => {
 
 app.post('/api/threads/:id/stream', async (req, res) => {
   const thread = await workerTask('get', { threadId: req.params.id });
-  if (!thread) { res.status(404).send('Not Found'); return; }
+  if (!thread) { res.status(404).json({ error: 'Not found' }); return; }
 
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -141,7 +170,7 @@ app.post('/api/threads/:id/stream', async (req, res) => {
 
   function sse(data) {
     if (!res.destroyed) {
-      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch {}
+      try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch (e) { console.error('SSE write error:', e.message); }
     }
   }
 
@@ -157,7 +186,7 @@ app.post('/api/threads/:id/stream', async (req, res) => {
     let fullThinking = '';
     let toolCall = null;
 
-    for await (const chunk of streamReply(msgs, modelType, !!thread.useGemini)) {
+    for await (const chunk of streamReply(msgs, modelType, settings.defaultProvider)) {
       if (chunk.type === 'content') {
         fullContent += chunk.content;
         if (chunk.thinking) fullThinking += chunk.thinking;
@@ -205,17 +234,18 @@ app.post('/api/threads/:id/stream', async (req, res) => {
     if (!thread.ignoreLoopWarning && estimateMessagesTokens(messages) > COMPACT_THRESHOLD) {
       sse({ compacting: true });
       try {
-        const { summary, summaryTokens, recentCount } = await compactMessages(messages, modelType);
+        const { summary, summaryTokens } = await compactMessages(messages, modelType);
         const recentMessages = messages.slice(-15);
+        const now = new Date();
         const compactSystemMsg = {
           role: 'assistant',
-          content: `[System: The conversation was compacted at this point to save context space. Previous context summary follows.]
+          content: `[System: The conversation was compacted at this point to save context space. Previous messages before this point no longer exist in the conversation — they have been replaced by the summary below. If you were working on specific files or tasks, you should re-read any relevant files or re-check their state before continuing, as the original context is no longer available.]
 
 ## Compacted Summary
 ${summary}
 
-The above summary replaces messages before this point. Continuing with the current conversation below:`,
-          timestamp: Date.now(),
+*Last compacted: ${now.toLocaleString()}*`,
+          timestamp: now.getTime(),
         };
         const newMessages = [compactSystemMsg, ...recentMessages];
         await workerTask('compact_messages', { threadId: req.params.id, messages: newMessages });
@@ -227,7 +257,37 @@ The above summary replaces messages before this point. Continuing with the curre
       }
     }
 
-    let { fullContent, fullThinking, toolCall } = await callAI(messages);
+    let fullContent, fullThinking, toolCall;
+    try {
+      const result = await callAI(messages);
+      fullContent = result.fullContent; fullThinking = result.fullThinking; toolCall = result.toolCall;
+    } catch (err) {
+      sse({ error: `AI call failed (${err.message}). Compacting and retrying...` });
+      try {
+        const { summary, summaryTokens } = await compactMessages(messages, modelType);
+        const recentMessages = messages.slice(-15);
+        const now = new Date();
+        const compactSystemMsg = {
+          role: 'assistant',
+          content: `[System: The conversation was compacted at this point to save context space. Previous messages before this point no longer exist in the conversation — they have been replaced by the summary below. If you were working on specific files or tasks, you should re-read any relevant files or re-check their state before continuing, as the original context is no longer available.]
+
+## Compacted Summary
+${summary}
+
+*Last compacted: ${now.toLocaleString()}*`,
+          timestamp: now.getTime(),
+        };
+        const newMessages = [compactSystemMsg, ...recentMessages];
+        await workerTask('compact_messages', { threadId: req.params.id, messages: newMessages });
+        messages.length = 0;
+        messages.push(...newMessages);
+        sse({ compacted: true, summaryTokens, totalMessages: newMessages.length });
+        ({ fullContent, fullThinking, toolCall } = await callAI(messages));
+      } catch (err2) {
+        sse({ error: `AI call failed after compaction: ${err2.message}. Stopping.` });
+        break;
+      }
+    }
 
     if (toolCall && toolCall.name === 'request_turn') {
       if (fullContent || fullThinking) {
@@ -363,8 +423,10 @@ The above summary replaces messages before this point. Continuing with the curre
 });
 
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+let settingsCache = null;
 
 function readSettings() {
+  if (settingsCache) return settingsCache;
   try {
     const raw = fs.readFileSync(SETTINGS_FILE, 'utf-8');
     const data = JSON.parse(raw);
@@ -373,8 +435,10 @@ function readSettings() {
     data.openrouterModel = data.openrouterModel || process.env.OPENROUTER_MODEL || '';
     data.geminiKey = data.geminiKey || process.env.GEMINI_API_KEY || '';
     data.geminiModel = data.geminiModel || process.env.GEMINI_MODEL || '';
+    settingsCache = data;
     return data;
-  } catch {
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.error('Error reading settings.json:', e.message);
     const defaults = {
       yoloMode: false,
       autoApprove: false,
@@ -385,6 +449,7 @@ function readSettings() {
       geminiKey: process.env.GEMINI_API_KEY || '',
       geminiModel: process.env.GEMINI_MODEL || '',
       releaseChannel: 'stable',
+      defaultProvider: 'openrouter',
     };
     writeSettings(defaults);
     return defaults;
@@ -393,6 +458,7 @@ function readSettings() {
 
 function writeSettings(data) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  settingsCache = null;
 }
 
 app.get('/api/settings', (req, res) => {
@@ -412,12 +478,10 @@ app.put('/api/settings', (req, res) => {
 });
 
 app.get('/api/browser-status', (req, res) => {
-  const bm = require('./browser-manager');
   res.json({ open: bm.isOpen() });
 });
 
 app.post('/api/browser-close', async (req, res) => {
-  const bm = require('./browser-manager');
   await bm.closeBrowser();
   res.json({ ok: true });
 });
@@ -458,7 +522,7 @@ app.post('/api/file-search', (req, res) => {
   const query = (req.body.query || '').trim();
   if (!query || query.length < 1) return res.json([]);
   const results = [];
-  const root = path.resolve(req.body.root || 'C:\\');
+  const root = path.resolve(req.body.root || (process.env.SystemDrive + '\\'));
   const maxResults = 20;
 
   function walk(dir) {
@@ -502,10 +566,11 @@ app.post('/api/threads/:id/root-path', async (req, res) => {
       threadId: req.params.id,
       rootPath: req.body.rootPath ? path.resolve(req.body.rootPath) : '',
     });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/root-path:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
@@ -515,46 +580,40 @@ app.post('/api/threads/:id/model-type', async (req, res) => {
       threadId: req.params.id,
       modelType: req.body.modelType || 'normal',
     });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/model-type:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.post('/api/threads/:id/truncate', async (req, res) => {
   try {
+    if (typeof req.body.upToIndex !== 'number' || req.body.upToIndex < 0) {
+      res.status(400).json({ error: 'upToIndex must be a non-negative number' });
+      return;
+    }
     const result = await workerTask('truncate', {
       threadId: req.params.id,
       upToIndex: req.body.upToIndex,
     });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/truncate:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
 app.post('/api/threads/:id/clear', async (req, res) => {
   try {
     const result = await workerTask('clear', { threadId: req.params.id });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
-  }
-});
-
-app.post('/api/threads/:id/use-gemini', async (req, res) => {
-  try {
-    const result = await workerTask('set_use_gemini', {
-      threadId: req.params.id,
-      useGemini: req.body.useGemini,
-    });
-    if (!result) { res.status(404).send('Not Found'); return; }
-    res.json(result);
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/clear:', e.message);
+    res.status(500).json({ error: 'Internal error' });
   }
 });
 
@@ -583,20 +642,25 @@ function isToolUnsafe(name, args, rootPath, settings) {
 
 app.post('/api/threads/:id/compact', async (req, res) => {
   const thread = await workerTask('get', { threadId: req.params.id });
-  if (!thread) { res.status(404).send('Not Found'); return; }
+  if (!thread) { res.status(404).json({ error: 'Not found' }); return; }
   const modelType = thread.modelType || 'normal';
   try {
     const { summary, summaryTokens, recentCount } = await compactMessages(thread.messages, modelType);
+    if (!summary) {
+      res.status(400).json({ error: 'Nothing to compact — 15 or fewer messages.' });
+      return;
+    }
     const recentMessages = thread.messages.slice(-15);
+    const now = new Date();
     const compactSystemMsg = {
       role: 'assistant',
-      content: `[System: The conversation was compacted to save context space. Previous context summary follows.]
+      content: `[System: The conversation was compacted at this point to save context space. Previous messages before this point no longer exist in the conversation — they have been replaced by the summary below. If you were working on specific files or tasks, you should re-read any relevant files or re-check their state before continuing, as the original context is no longer available.]
 
 ## Compacted Summary
 ${summary}
 
-The above summary replaces messages before this point. Continuing with the current conversation below:`,
-      timestamp: Date.now(),
+*Last compacted: ${now.toLocaleString()}*`,
+      timestamp: now.getTime(),
     };
     const newMessages = [compactSystemMsg, ...recentMessages];
     await workerTask('compact_messages', { threadId: req.params.id, messages: newMessages });
@@ -613,7 +677,7 @@ app.post('/api/approve-tool/:id', (req, res) => {
     resolver(req.body.approved);
     res.json({ ok: true });
   } else {
-    res.status(404).json({ error: 'No pending approval' });
+    res.status(410).json({ error: 'Approval expired or not found' });
   }
 });
 
@@ -624,17 +688,68 @@ app.post('/api/answer-ask/:id', (req, res) => {
     resolver(req.body.answers || null);
     res.json({ ok: true });
   } else {
-    res.status(404).json({ error: 'No pending ask' });
+    res.status(410).json({ error: 'Question expired or not found' });
   }
 });
 
 app.post('/api/threads/:id/ignore-loop-warning', async (req, res) => {
   try {
     const result = await workerTask('set_ignore_loop', { threadId: req.params.id });
-    if (!result) { res.status(404).send('Not Found'); return; }
+    if (!result) { res.status(404).json({ error: 'Not found' }); return; }
     res.json({ ok: true });
-  } catch {
-    res.status(400).send('Bad Request');
+  } catch (e) {
+    console.error('POST /api/threads/:id/ignore-loop-warning:', e.message);
+    res.status(500).json({ error: 'Internal error' });
+  }
+});
+
+/* ---- Server notification system ---- */
+
+let sseClients = [];
+let sseHeartbeat = null;
+
+app.get('/api/events', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
+  res.write('event: connected\ndata: {}\n\n');
+  sseClients.push(res);
+  req.on('close', () => {
+    sseClients = sseClients.filter(c => c !== res);
+    if (sseClients.length === 0 && sseHeartbeat) {
+      clearInterval(sseHeartbeat);
+      sseHeartbeat = null;
+    }
+  });
+  if (!sseHeartbeat) {
+    sseHeartbeat = setInterval(() => {
+      const now = Date.now();
+      sseClients = sseClients.filter(c => {
+        try { c.write(':heartbeat\n\n'); return true; } catch { return false; }
+      });
+      if (sseClients.length === 0) {
+        clearInterval(sseHeartbeat);
+        sseHeartbeat = null;
+      }
+    }, 30000);
+  }
+});
+
+function notifyClients(message, type) {
+  type = type || 'error';
+  const data = `event: notify\ndata: ${JSON.stringify({ message, type })}\n\n`;
+  sseClients = sseClients.filter(c => {
+    try { c.write(data); return true; } catch { return false; }
+  });
+}
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  notifyClients(err.message || 'Internal server error', 'error');
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -642,6 +757,12 @@ async function start(port) {
   port = port || PORT;
   fs.mkdirSync(DATA_DIR, { recursive: true });
   initWorkers();
+  const settings = readSettings();
+  if (settings.openrouterKey) process.env.OPENROUTER_API_KEY = settings.openrouterKey;
+  if (settings.openrouterModel) process.env.OPENROUTER_MODEL = settings.openrouterModel;
+  if (settings.geminiKey) process.env.GEMINI_API_KEY = settings.geminiKey;
+  if (settings.geminiModel) process.env.GEMINI_MODEL = settings.geminiModel;
+  if (settings.defaultProvider) process.env.DEFAULT_PROVIDER = settings.defaultProvider;
   return new Promise((resolve) => {
     serverHandle = app.listen(port, () => {
       console.log(`Server running at http://localhost:${port}/ (${POOL_SIZE} workers, data: ${DATA_DIR})`);

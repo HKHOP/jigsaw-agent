@@ -3,7 +3,9 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
-const { execSync, exec } = require('node:child_process');
+const { spawn, exec } = require('node:child_process');
+const bm = require('./browser-manager');
+const dm = require('./db-manager');
 
 const TOOL_DEFINITIONS = [
   {
@@ -657,6 +659,30 @@ function execAsync(cmd, opts) {
   });
 }
 
+function spawnAsync(cmd, args, opts) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { ...opts, shell: false });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (data) => { stdout += data; });
+    child.stderr.on('data', (data) => { stderr += data; });
+    child.on('close', (code) => {
+      if (code === 0) resolve({ stdout, stderr, exitCode: code });
+      else {
+        const err = new Error(`Command failed (exit code ${code})`);
+        err.stdout = stdout;
+        err.stderr = stderr;
+        err.status = code;
+        reject(err);
+      }
+    });
+    child.on('error', reject);
+    if (opts?.timeout) {
+      setTimeout(() => { child.kill(); reject(new Error('Command timed out')); }, opts.timeout);
+    }
+  });
+}
+
 async function executeTool(name, args, settings, rootPath) {
   const toolCfg = settings?.tools?.[name] || {};
 
@@ -720,15 +746,15 @@ async function executeTool(name, args, settings, rootPath) {
           if (e.isDirectory()) { await walk(full); continue; }
           if (e.isFile()) {
             if (includeFilter && !includeFilter.test(e.name)) continue;
-            try {
-              const content = await fsp.readFile(full, 'utf-8');
-              const lines = content.split('\n');
-              for (let i = 0; i < lines.length; i++) {
-                if (pattern.test(lines[i])) {
-                  results.push({ file: full, line: i + 1, text: lines[i].trim() });
+              try {
+                const content = await fsp.readFile(full, 'utf-8');
+                const lines = content.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                  if (pattern.test(lines[i])) {
+                    results.push({ file: full, line: i + 1, text: lines[i].trim() });
+                  }
                 }
-              }
-            } catch {}
+              } catch {}
           }
         }
       }
@@ -799,9 +825,12 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'git_operations': {
       const cwd = process.cwd();
-      const cmd = `git ${args.operation}${args.args ? ' ' + args.args : ''}`;
+      const gitArgs = [args.operation];
+      if (args.args) {
+        gitArgs.push(...args.args.split(' ').filter(Boolean));
+      }
       try {
-        const { stdout, stderr } = await execAsync(cmd, { cwd, encoding: 'utf-8', timeout: 30000 });
+        const { stdout, stderr } = await spawnAsync('git', gitArgs, { cwd, timeout: 30000 });
         return { operation: args.operation, stdout, exitCode: 0 };
       } catch (e) {
         return { operation: args.operation, stdout: e.stdout || '', stderr: e.stderr || e.message, exitCode: e.status || 1 };
@@ -1005,11 +1034,10 @@ async function executeTool(name, args, settings, rootPath) {
     case 'clipboard': {
       try {
         if (args.action === 'read') {
-          const { stdout } = await execAsync('powershell -Command "Get-Clipboard"', { encoding: 'utf8', timeout: 5000 });
+          const { stdout } = await spawnAsync('powershell', ['-NoProfile', '-Command', 'Get-Clipboard'], { timeout: 5000 });
           return { content: stdout.trim() };
         } else {
-          const content = (args.content || '').replace(/"/g, '\\"');
-          await execAsync(`powershell -Command "Set-Clipboard -Value \\"${content}\\""`, { timeout: 5000 });
+          await spawnAsync('powershell', ['-NoProfile', '-Command', 'Set-Clipboard', '-Value', args.content || ''], { timeout: 5000 });
           return { success: true };
         }
       } catch (e) {
@@ -1152,7 +1180,7 @@ async function executeTool(name, args, settings, rootPath) {
             if (score > 0 && url) {
               results.push({ title, url, category, score, file: entry.name });
             }
-          } catch {}
+          } catch (e) { console.error('see_documentation read error:', full, e.message); }
         }
       }
       await walk(docsDir);
@@ -1240,62 +1268,52 @@ async function executeTool(name, args, settings, rootPath) {
     /* ---- Browser tools ---- */
 
     case 'browser_navigate': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.navigate(args.url, args.waitUntil);
     }
 
     case 'browser_click': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.click(args.selector);
     }
 
     case 'browser_fill': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.fill(args.selector, args.value);
     }
 
     case 'browser_select': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.select(args.selector, args.value);
     }
 
     case 'browser_get_content': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.getContent(args.includeAll);
     }
 
     case 'browser_screenshot': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       if (args.path && !inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       return await bm.screenshot(args.path || null);
     }
 
     case 'browser_evaluate': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.evaluate(args.code);
     }
 
     case 'browser_hover': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.hover(args.selector);
     }
 
     case 'browser_get_text': {
-      const bm = require('./browser-manager');
       bm.setHeadless(settings?.browserHeadless !== false);
       return await bm.getText(args.selector || null);
     }
 
     case 'browser_close': {
-      const bm = require('./browser-manager');
       await bm.closeBrowser();
       return { ok: true, closed: true };
     }
@@ -1304,31 +1322,26 @@ async function executeTool(name, args, settings, rootPath) {
 
     case 'db_list_tables': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const dm = require('./db-manager');
       return await dm.listTables(args.path);
     }
 
     case 'db_get_schema': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const dm = require('./db-manager');
       return await dm.getSchema(args.path, args.table);
     }
 
     case 'db_query': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const dm = require('./db-manager');
       return await dm.query(args.path, args.sql, args.params);
     }
 
     case 'db_execute': {
       if (!inRootPath(args.path, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const dm = require('./db-manager');
       return await dm.execute(args.path, args.sql, args.params);
     }
 
     case 'db_backup': {
       if (!inRootPath(args.path, rootPath, settings) || !inRootPath(args.output, rootPath, settings)) return { error: 'Access denied: path outside project root' };
-      const dm = require('./db-manager');
       return await dm.backup(args.path, args.output);
     }
 
@@ -1353,7 +1366,6 @@ async function executeTool(name, args, settings, rootPath) {
       if (!inRootPath(appPath, rootPath, settings)) return { error: 'Access denied: path outside project root' };
       try { await fsp.access(appPath); } catch { return { error: `File not found: ${appPath}` }; }
       try {
-        const { spawn } = require('node:child_process');
         spawn(appPath, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
         return { ok: true, path: appPath };
       } catch (e) {

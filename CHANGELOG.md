@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 — 2026-07-29
+
+### Added
+- Global default AI provider setting (Settings → API Keys → Default AI Provider) — choose OpenRouter or Gemini as primary; the other becomes fallback
+- Compaction timestamp is now embedded in the compact message content so it persists across restarts
+- Compaction system message now instructs the AI that prior messages are gone and it should re-read files / re-check state
+- Auto-retry with compaction when AI call fails due to context overflow (e.g. large file reads exceeding the model's window)
+- Compaction input is truncated to 100k characters (head + tail) before sending to the API, preventing request failures on oversized conversations
+- Compaction falls back to Gemini if OpenRouter is unavailable (and vice versa), returns a placeholder summary if both fail
+
+### Removed
+- `/usefallback` command and per-thread `useGemini` toggle — replaced by global default provider setting
+
+### Fixed
+- `GEMINI_API_KEY not set` error on server restart — persisted API keys now populate `process.env` at startup
+- Compaction showing `undefined` tokens/messages in the UI — added `?? 0` fallbacks
+- Compaction running on tiny conversations (≤15 messages) giving bogus "Please provide the conversation..." summary — now returns early with no-op
+- AI call crashing the entire SSE stream when messages exceed the model's context window — now caught, compacts, and retries once
+
 ## 1.1.1 — 2026-07-27
 
 ### Added

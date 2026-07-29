@@ -1168,6 +1168,101 @@ html, body {
   color: #fff;
 }
 
+#notifications {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+  pointer-events: none;
+}
+
+.notification {
+  pointer-events: auto;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 10px 36px 10px 12px;
+  font-size: 13px;
+  color: #e0e0e0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  animation: notifIn 0.2s ease-out;
+  word-break: break-word;
+  cursor: pointer;
+  user-select: text;
+  position: relative;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.notification:hover {
+  border-color: #555;
+}
+
+.notification.error {
+  border-left: 3px solid #e55;
+}
+
+.notification.warn {
+  border-left: 3px solid #ea0;
+}
+
+.notification.info {
+  border-left: 3px solid #48f;
+}
+
+.notification-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px;
+}
+
+.notification-close:hover {
+  color: #e55;
+}
+
+.notification-copy {
+  position: absolute;
+  top: 4px;
+  right: 22px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.notification:hover .notification-copy {
+  opacity: 1;
+}
+
+@keyframes notifIn {
+  from { transform: translateX(80px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.notif-out {
+  animation: notifOut 0.2s ease-in forwards;
+}
+
+@keyframes notifOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(80px); opacity: 0; }
+}
+
 #settings-page {
   position: absolute;
   inset: 0;

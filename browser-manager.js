@@ -1,13 +1,16 @@
 const { chromium } = require('playwright');
+const fs = require('node:fs');
 
 let browser = null;
 let page = null;
 let headlessMode = true;
+let browserPromise = null;
+let closing = false;
 
 function setHeadless(val) {
   headlessMode = val;
-  if (browser) {
-    closeBrowser();
+  if (browser && !closing) {
+    return closeBrowser();
   }
 }
 
@@ -16,15 +19,21 @@ function isOpen() {
 }
 
 async function getPage() {
+  if (closing) return null;
   if (!browser) {
-    const args = ['--no-sandbox', '--disable-setuid-sandbox'];
-    if (!headlessMode) {
-      args.push('--start-maximized', '--new-window');
-    }
-    browser = await chromium.launch({
-      headless: headlessMode,
-      args,
-    });
+    if (browserPromise) return browserPromise.then(() => getPage());
+    browserPromise = (async () => {
+      const args = ['--no-sandbox', '--disable-setuid-sandbox'];
+      if (!headlessMode) {
+        args.push('--start-maximized', '--new-window');
+      }
+      browser = await chromium.launch({
+        headless: headlessMode,
+        args,
+      });
+      browserPromise = null;
+    })();
+    await browserPromise;
   }
   if (!page || page.isClosed()) {
     const viewport = headlessMode ? { width: 1280, height: 720 } : null;
@@ -34,14 +43,18 @@ async function getPage() {
 }
 
 async function closeBrowser() {
+  if (closing) return;
+  closing = true;
   try {
     if (page && !page.isClosed()) await page.close();
-  } catch {}
+  } catch (e) { console.error('Error closing page:', e.message); }
   try {
     if (browser) await browser.close();
-  } catch {}
+  } catch (e) { console.error('Error closing browser:', e.message); }
   page = null;
   browser = null;
+  browserPromise = null;
+  closing = false;
 }
 
 async function checkLoading(p) {
@@ -66,6 +79,7 @@ async function getPageText(p) {
 
 async function navigate(url, waitUntil) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   await p.goto(url, { waitUntil: waitUntil || 'load', timeout: 30000 });
   const title = await p.title();
   const pageText = await getPageText(p);
@@ -75,6 +89,7 @@ async function navigate(url, waitUntil) {
 
 async function click(selector) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   await p.waitForSelector(selector, { timeout: 10000 });
   await p.click(selector, { force: true });
   const pageText = await getPageText(p);
@@ -84,6 +99,7 @@ async function click(selector) {
 
 async function fill(selector, value) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   await p.waitForSelector(selector, { timeout: 10000 });
   await p.fill(selector, value);
   return { filled: selector, value };
@@ -91,6 +107,7 @@ async function fill(selector, value) {
 
 async function select(selector, value) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   await p.waitForSelector(selector, { timeout: 10000 });
   await p.selectOption(selector, value);
   return { selected: selector, value };
@@ -98,6 +115,7 @@ async function select(selector, value) {
 
 async function getContent(includeAll) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   const html = await p.content();
   if (includeAll) return { html };
   const cleaned = html
@@ -111,25 +129,27 @@ async function getContent(includeAll) {
   return { html: cleaned };
 }
 
-async function screenshot(path) {
+async function screenshot(filePath) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   const buf = await p.screenshot({ type: 'png', fullPage: false });
-  if (path) {
-    const fs = require('node:fs');
-    fs.writeFileSync(path, buf);
-    return { saved: path, size: buf.length };
+  if (filePath) {
+    fs.writeFileSync(filePath, buf);
+    return { saved: filePath, size: buf.length };
   }
   return { dataUrl: `data:image/png;base64,${buf.toString('base64')}`, size: buf.length };
 }
 
 async function evaluate(code) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   const result = await p.evaluate(code);
   return { result };
 }
 
 async function hover(selector) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   await p.waitForSelector(selector, { timeout: 10000 });
   await p.hover(selector);
   return { hovered: selector };
@@ -137,6 +157,7 @@ async function hover(selector) {
 
 async function getText(selector) {
   const p = await getPage();
+  if (!p) return { error: 'Browser is closing' };
   if (selector) {
     await p.waitForSelector(selector, { timeout: 5000 }).catch(() => {});
     const el = await p.$(selector);
